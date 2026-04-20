@@ -17,6 +17,7 @@ One row per TD fiscal quarter (e.g., "FY2024Q2"), with columns:
   news_sentiment_mean
   report_40f_sentiment_mean
   report_quarterly_sentiment_mean
+  report_sentiment_mean              (merged: quarterly if available, else 40f annual)
 
   Topic share & sentiment (per label)
   ────────────────────────────────────
@@ -58,6 +59,11 @@ TOPICS = [
 ]
 
 SOURCE_TYPES = ["transcripts", "news", "reports_40f", "reports_quarterly"]
+
+# Inclusive upper bound for analysis. Quarters beyond this are excluded so
+# partial-quarter news releases (e.g. Feb 2026 news labeled FY2026Q2) do not
+# leak into the feature matrix before transcripts/reports are available.
+ANALYSIS_CUTOFF = "FY2026Q1"
 
 
 def _load_annotations() -> list[dict]:
@@ -169,6 +175,12 @@ def aggregate(records: list[dict]) -> pd.DataFrame:
         row["news_sentiment_mean"] = _safe_mean(scores("news"))
         row["report_40f_sentiment_mean"] = _safe_mean(scores("reports_40f"))
         row["report_quarterly_sentiment_mean"] = _safe_mean(scores("reports_quarterly"))
+        # Merged report column: prefer quarterly (Q1–Q3) over annual 40F (Q4)
+        row["report_sentiment_mean"] = (
+            row["report_quarterly_sentiment_mean"]
+            if row["report_quarterly_sentiment_mean"] is not None
+            else row["report_40f_sentiment_mean"]
+        )
 
         # -----------------------------------------------------------------
         # Topic features
@@ -198,6 +210,10 @@ def aggregate(records: list[dict]) -> pd.DataFrame:
         rows.append(row)
 
     df = pd.DataFrame(rows).sort_values("fiscal_quarter").reset_index(drop=True)
+    before = len(df)
+    df = df[df["fiscal_quarter"] <= ANALYSIS_CUTOFF].reset_index(drop=True)
+    if len(df) < before:
+        log.info("Dropped %d quarter(s) beyond cutoff %s", before - len(df), ANALYSIS_CUTOFF)
     return df
 
 

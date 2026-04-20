@@ -179,11 +179,98 @@ SPEAKER_LINE_RE = re.compile(
     r"(?:\s*[-–—,]\s*(?P<affil>[^,\n]{3,120}))?\s*$"
 )
 
+# Primary: explicit Q&A header line ("QUESTION AND ANSWER", "Q&A", etc.)
+# Fallback: transcripts that skip the header and go straight to the operator
+# taking questions (pattern: "We will now take questions from the telephone
+# lines" or "We'll now take questions..."). When the fallback matches we
+# include the matched text in the Q&A block rather than discarding it.
 QA_HEADER_RE = re.compile(
-    r"(?im)^\s*(questions?\s*(and|\&)\s*answers?|q\s*&\s*a|question[-\s]and[-\s]answer)\s*$"
+    # Compact form: "QUESTION AND ANSWER", "Q&A", etc.
+    # Spaced-letter form from some TD PDFs: "Q U E S T I O N  A N D  A N S W E R"
+    r"^\s*(?:questions?\s*(?:and|&)\s*answers?|q\s*&\s*a|question[-\s]and[-\s]answer"
+    r"|Q\s+U\s+E\s+S\s+T\s+I\s+O\s+N\s+A\s+N\s+D\s+A\s+N\s+S\s+W\s+E\s+R)\s*$",
+    re.IGNORECASE | re.MULTILINE,
+)
+QA_IMPLICIT_RE = re.compile(
+    r"(?im)^(Thank you[,.]?\s+)?We(?:'ll| will) now take questions from the telephone",
 )
 
 OPERATOR_NAMES = {"operator"}
+
+# Lines that match SPEAKER_LINE_RE but are mid-paragraph PDF artefacts (sentence
+# starts like "In Wholesale Banking, …" or "… America's Most Convenient Bank …")
+# incorrectly split from the prior executive's prepared remarks.
+_BAD_SPEAKER_FIRST_TOKEN = frozenset(
+    {
+        # prepositions / articles / conjunctions
+        "in", "on", "at", "to", "the", "we", "our", "as", "for",
+        "this", "that", "these", "those", "a", "an", "and", "or", "but",
+        "if", "when", "while", "with",
+        # sentence-start words never seen as first names in bank transcripts
+        "also", "thank", "convenient", "wholesale",
+        # bank product / initiative words that appear as PDF-artefact "speakers"
+        "td",        # TD Bank, TD Rewards, TD Auto Finance, …
+        "wealth",    # Wealth Management
+        "investor",  # Investor Day
+        "complete",  # Complete Checking
+        "income",    # Income Survey
+        "united",    # United States
+        "tech",      # Tech Global Markets
+        "djsi",      # DJSI North American Index
+    }
+)
+
+# Words that are clearly not surnames — if the *last* token of the parsed
+# speaker line is one of these it is a segment/product/programme name, not a person.
+_BAD_SPEAKER_LAST_TOKEN = frozenset(
+    {
+        "management", "markets", "rewards", "checking", "survey",
+        "index", "banking", "technologies", "solutions", "payments",
+        "program", "programme", "fund", "bank",
+    }
+)
+
+
+def _is_plausible_speaker_name(name: str) -> bool:
+    """Return True if *name* looks like a person / operator line, not a sentence stub."""
+    n = (name or "").strip()
+    if not n:
+        return False
+    low = n.lower()
+    if low == "operator":
+        return True
+    parts = n.split()
+    if len(parts) < 2:
+        return False
+    if parts[0].lower() in _BAD_SPEAKER_FIRST_TOKEN:
+        return False
+    if parts[-1].lower() in _BAD_SPEAKER_LAST_TOKEN:
+        return False
+    # Long phrases are usually titles or table fragments, not "Firstname Lastname"
+    if len(parts) > 5:
+        return False
+    if low in ("convenient bank", "td bank group"):
+        return False
+    return True
+
+
+def _inherit_exec_in_prepared(turns: list[dict]) -> list[dict]:
+    """Re-label spurious ``other`` turns that are still the prior executive's remarks.
+
+    Rare PDF layouts leave a plausible-looking *name* on a fragment line; if role is
+    still ``other`` after parsing, copy the last CEO/CFO/other_exec speaker.
+    """
+    last: tuple[str, str, str] | None = None
+    for t in turns:
+        role = t.get("role", "other")
+        name = (t.get("speaker_name") or "").strip()
+        if role in ("ceo", "cfo", "other_exec"):
+            last = (name, role, (t.get("affiliation") or "").strip())
+        elif role == "other" and last and not _is_plausible_speaker_name(name):
+            t["speaker_name"] = last[0]
+            t["role"] = last[1]
+            t["affiliation"] = last[2]
+    return turns
 
 
 def _classify_speaker_role(name: str, affiliation: str | None) -> str:
@@ -215,14 +302,21 @@ def parse_transcript(text: str) -> dict:
         }
       }
     """
-    # Split text at first Q&A header
+    # Split text at first Q&A header.
+    # Primary: explicit standalone header → skip the header line itself.
+    # Fallback: operator line that signals start of Q&A → keep it in qa_text.
     qa_match = QA_HEADER_RE.search(text)
     if qa_match:
         prepared_text = text[: qa_match.start()]
         qa_text = text[qa_match.end() :]
     else:
-        prepared_text = text
-        qa_text = ""
+        implicit_match = QA_IMPLICIT_RE.search(text)
+        if implicit_match:
+            prepared_text = text[: implicit_match.start()]
+            qa_text = text[implicit_match.start() :]  # include the operator line
+        else:
+            prepared_text = text
+            qa_text = ""
 
     def _parse_turns(block: str) -> list[dict]:
         turns: list[dict] = []
@@ -265,7 +359,7 @@ def parse_transcript(text: str) -> dict:
 
     return {
         "sections": {
-            "prepared_remarks": _parse_turns(prepared_text),
+            "prepared_remarks": _inherit_exec_in_prepared(_parse_turns(prepared_text)),
             "qa": _parse_turns(qa_text),
         },
         "has_qa_section": bool(qa_text),

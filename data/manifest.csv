@@ -1478,3 +1478,15 @@ preprocess,chunks,news,data/processed/chunks/news.jsonl,,2026-04-18T04:29:59+00:
 preprocess,chunks,reports_40f,data/processed/chunks/reports_40f.jsonl,,2026-04-18T04:30:01+00:00,1023.0,e8b4b7ef50294cec8e3e258f4b7cf8da59de671f71df3a1754f99618d1d97c80,total_tokens=1381463
 preprocess,chunks,reports_quarterly,data/processed/chunks/reports_quarterly.jsonl,,2026-04-18T04:30:03+00:00,1086.0,ae31945fa5c4d4a5a7bd6cd073580570b1eab17f3f219f668135b6529eda742a,total_tokens=1479278
 preprocess,chunks,transcripts,data/processed/chunks/transcripts.jsonl,,2026-04-18T04:30:04+00:00,1363.0,ac3eabbaee9f6d00b8ffc93f1bbacccbbf9ac5ef1b565203566528e8d1b7ead0,total_tokens=249887
+preprocess,chunks,news,data/processed/chunks/news.jsonl,,2026-04-19T20:31:25+00:00,1019,ee66860e1713f13c191f004beaa12674f139530513c1a26d74ee4248d196999c,total_tokens=1176263
+preprocess,chunks,reports_40f,data/processed/chunks/reports_40f.jsonl,,2026-04-19T20:31:27+00:00,1023,e8b4b7ef50294cec8e3e258f4b7cf8da59de671f71df3a1754f99618d1d97c80,total_tokens=1381463
+preprocess,chunks,reports_quarterly,data/processed/chunks/reports_quarterly.jsonl,,2026-04-19T20:31:29+00:00,1151,16fd09a76627b0cd881aa397cc3a4cc327179fd5faec011188c3047139d28633,total_tokens=1567378
+preprocess,chunks,transcripts,data/processed/chunks/transcripts.jsonl,,2026-04-19T20:31:30+00:00,1199,028b0b06aa3ebe48d67ade73d760b13f96f64e0b1bba794922bdf82758f5650e,total_tokens=259862
+preprocess,chunks,news,data/processed/chunks/news.jsonl,,2026-04-19T20:32:01+00:00,1019,ee66860e1713f13c191f004beaa12674f139530513c1a26d74ee4248d196999c,total_tokens=1176263
+preprocess,chunks,reports_40f,data/processed/chunks/reports_40f.jsonl,,2026-04-19T20:32:03+00:00,1023,e8b4b7ef50294cec8e3e258f4b7cf8da59de671f71df3a1754f99618d1d97c80,total_tokens=1381463
+preprocess,chunks,reports_quarterly,data/processed/chunks/reports_quarterly.jsonl,,2026-04-19T20:32:05+00:00,1151,16fd09a76627b0cd881aa397cc3a4cc327179fd5faec011188c3047139d28633,total_tokens=1567378
+preprocess,chunks,transcripts,data/processed/chunks/transcripts.jsonl,,2026-04-19T20:32:06+00:00,1390,0fa4572400668e34079bad866b58b3b3bdcc38e2248752382f9b2d7b67012954,total_tokens=258171
+preprocess,chunks,news,data/processed/chunks/news.jsonl,,2026-04-19T20:42:43+00:00,1019,ee66860e1713f13c191f004beaa12674f139530513c1a26d74ee4248d196999c,total_tokens=1176263
+preprocess,chunks,reports_40f,data/processed/chunks/reports_40f.jsonl,,2026-04-19T20:42:45+00:00,1023,e8b4b7ef50294cec8e3e258f4b7cf8da59de671f71df3a1754f99618d1d97c80,total_tokens=1381463
+preprocess,chunks,reports_quarterly,data/processed/chunks/reports_quarterly.jsonl,,2026-04-19T20:42:47+00:00,1151,16fd09a76627b0cd881aa397cc3a4cc327179fd5faec011188c3047139d28633,total_tokens=1567378
+preprocess,chunks,transcripts,data/processed/chunks/transcripts.jsonl,,2026-04-19T20:42:47+00:00,1390,f224b1b19a5299a9b91a1c4f405068c56aadcfeffc9a04c4786c7c1b23f2a080,total_tokens=258171

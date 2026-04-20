@@ -16,6 +16,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import re
 import sys
 import time
 from pathlib import Path
@@ -38,7 +39,8 @@ log = logging.getLogger("annotate")
 MODEL = "gpt-4o-mini"
 PROMPT_VERSION = "v1"
 BATCH_SIZE = 20        # chunks per API call (each call = one system msg + N user msgs)
-MIN_TOKENS = 50        # skip short stub chunks (name-listing headers etc.)
+MIN_TOKENS = 45        # skip stub chunks; 45 catches short CEO openers that are still substantive
+MAX_TABLE_RATIO = 0.40 # skip chunks where >40% of tokens are numeric/symbolic
 MAX_RETRIES = 2        # per-batch retry attempts on parse failure
 REQUEST_DELAY = 0.25   # seconds between batches (rate-limit headroom)
 
@@ -67,6 +69,46 @@ SYSTEM_PROMPT = (
 )
 
 TOPIC_LIST_STR = ", ".join(TOPICS)
+
+
+_INTRO_KEYWORDS = frozenset(
+    ["introduced", "introduce", "leadership team", "participants",
+     "presenting", "joining", "welcome", "moderator", "operator"]
+)
+
+
+def _is_admin_chunk(chunk: dict) -> bool:
+    """Return True for administrative/boilerplate transcript chunks that carry no sentiment signal.
+
+    Two patterns:
+    1. Speaker role is 'ir' — always a forward-looking-statement disclaimer or housekeeping preamble.
+    2. Score would be 0.0 and key_quote contains intro-announcement language — operator/moderator
+       lines introducing participants (e.g. "Good afternoon and welcome…").
+
+    These chunks consistently score 0.000 and contribute only noise to speaker-level aggregations.
+    """
+    role = (chunk.get("speaker") or {}).get("role", "")
+    if role == "ir":
+        return True
+    text_lower = (chunk.get("text") or "").lower()
+    if len(text_lower.split()) < 80 and any(kw in text_lower for kw in _INTRO_KEYWORDS):
+        return True
+    return False
+
+
+def _is_table_heavy(text: str, threshold: float = MAX_TABLE_RATIO) -> bool:
+    """Return True if >threshold fraction of whitespace-split tokens are numeric/symbolic.
+
+    Financial tables extracted from PDFs look like rows of numbers, '$', '%',
+    column headers, and very few prose words. The LLM cannot produce reliable
+    sentiment from these — it infers sentiment from the numbers themselves,
+    which is closer to hallucination than annotation.
+    """
+    tokens = text.split()
+    if not tokens:
+        return True
+    numeric = sum(1 for t in tokens if re.fullmatch(r"[\d,.\$%\(\)\-\/\|]+", t))
+    return numeric / len(tokens) > threshold
 
 
 def _build_user_message(chunk: dict) -> str:
@@ -141,18 +183,32 @@ def annotate_source(source_type: str, dry_run: bool = False) -> None:
         log.warning("%s chunk file not found, skipping", source_type)
         return
 
-    # Load all chunks
+    # Load all chunks, applying token-count, table-content, and admin filters
     all_chunks: list[dict] = []
+    n_short = 0
+    n_table = 0
+    n_admin = 0
     with chunk_path.open(encoding="utf-8") as fh:
         for line in fh:
             try:
                 c = json.loads(line)
             except Exception:
                 continue
-            if c.get("token_count", 0) >= MIN_TOKENS:
-                all_chunks.append(c)
+            if c.get("token_count", 0) < MIN_TOKENS:
+                n_short += 1
+                continue
+            if _is_table_heavy(c.get("text", "")):
+                n_table += 1
+                continue
+            if source_type == "transcripts" and _is_admin_chunk(c):
+                n_admin += 1
+                continue
+            all_chunks.append(c)
 
-    log.info("%s: %d chunks above %d-token threshold", source_type, len(all_chunks), MIN_TOKENS)
+    log.info(
+        "%s: %d chunks eligible  (skipped %d short, %d table-heavy, %d admin)",
+        source_type, len(all_chunks), n_short, n_table, n_admin,
+    )
 
     # Load cache and filter already-annotated
     cache = load_cache(source_type)
