@@ -22,9 +22,13 @@ from typing import Dict, List
 import numpy as np
 import pandas as pd
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[4]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
+
+_EXP_PARENT = Path(__file__).resolve().parents[2]  # model_experiments/
+if str(_EXP_PARENT) not in sys.path:
+    sys.path.insert(0, str(_EXP_PARENT))
 
 from redesign_single_stock.src.run_redesign_experiments import (  # noqa: E402
     Experiment,
@@ -53,7 +57,7 @@ from redesign_single_stock.src.run_step2_48feature_experiment import (  # noqa: 
 from src.models.walk_forward_config import E10_FOLDS  # noqa: E402
 
 
-OUT_DIR = ROOT / "redesign_single_stock/data/step2_48_bootstrap"
+OUT_DIR = ROOT / "step3_predictive_model/model_experiments/redesign_single_stock/data/step2_48_bootstrap"
 TARGET = "target_excess_xfn_5d"
 THRESHOLD = 0.0030
 EXP_ID = "STEP2_48F_Boot30"
@@ -225,11 +229,11 @@ def main() -> None:
     out["confusion_df"].to_csv(confusion_path, index=False)
     out["stats_df"].to_csv(stats_path, index=False)
 
-    round2 = pd.read_csv(ROOT / "redesign_single_stock/data/round2_summary.csv")
+    round2 = pd.read_csv(ROOT / "step3_predictive_model/model_experiments/redesign_single_stock/data/round2_summary.csv")
     r07 = _compare_row(round2, "S2_Reduced")
     shap30 = _compare_row(round2, "S2_StaticShap30")
 
-    step2_summary_path = ROOT / "redesign_single_stock/data/step2_48/step2_48_summary.json"
+    step2_summary_path = ROOT / "step3_predictive_model/model_experiments/redesign_single_stock/data/step2_48/step2_48_summary.json"
     step2_48f = json.loads(step2_summary_path.read_text()) if step2_summary_path.exists() else {}
 
     summary = out["summary"]

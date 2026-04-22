@@ -21,9 +21,13 @@ from typing import Dict, List
 import numpy as np
 import pandas as pd
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[4]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
+
+_EXP_PARENT = Path(__file__).resolve().parents[2]  # model_experiments/
+if str(_EXP_PARENT) not in sys.path:
+    sys.path.insert(0, str(_EXP_PARENT))
 
 from src.models.walk_forward_config import E10_FOLDS
 from redesign_single_stock.src.run_redesign_experiments import (
@@ -40,7 +44,7 @@ from redesign_single_stock.src.run_redesign_experiments import (
 )
 
 
-OUT_DIR = ROOT / "redesign_single_stock/data/improvements"
+OUT_DIR = ROOT / "step3_predictive_model/model_experiments/redesign_single_stock/data/improvements"
 TARGET = "target_excess_xfn_5d"
 THRESHOLD = 0.003
 TOP_K = 30

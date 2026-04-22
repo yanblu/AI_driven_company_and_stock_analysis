@@ -31,9 +31,13 @@ from typing import Dict, List
 import numpy as np
 import pandas as pd
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[4]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
+
+_EXP_PARENT = Path(__file__).resolve().parents[2]  # model_experiments/
+if str(_EXP_PARENT) not in sys.path:
+    sys.path.insert(0, str(_EXP_PARENT))
 
 from redesign_single_stock.src.run_redesign_experiments import (  # noqa: E402
     Experiment,
@@ -51,7 +55,7 @@ from redesign_single_stock.src.run_redesign_experiments import (  # noqa: E402
 from src.models.walk_forward_config import E10_FOLDS  # noqa: E402
 
 
-OUT_DIR = ROOT / "redesign_single_stock/data/step2_full_staticshap"
+OUT_DIR = ROOT / "step3_predictive_model/model_experiments/redesign_single_stock/data/step2_full_staticshap"
 TARGET = "target_excess_xfn_5d"
 THRESHOLD = 0.0030
 TOP_K = 30
@@ -272,12 +276,12 @@ def main() -> None:
     out["stats_df"].to_csv(stats_path, index=False)
     out["confusion_df"].to_csv(confusion_path, index=False)
 
-    round2_path = ROOT / "redesign_single_stock/data/round2_summary.csv"
+    round2_path = ROOT / "step3_predictive_model/model_experiments/redesign_single_stock/data/round2_summary.csv"
     r07 = _load_row(round2_path, "S2_Reduced")
     shap30 = _load_row(round2_path, "S2_StaticShap30")
 
-    step2_48_path = ROOT / "redesign_single_stock/data/step2_48/step2_48_summary.json"
-    boot_path = ROOT / "redesign_single_stock/data/step2_48_bootstrap/step2_48_bootstrap_summary.json"
+    step2_48_path = ROOT / "step3_predictive_model/model_experiments/redesign_single_stock/data/step2_48/step2_48_summary.json"
+    boot_path = ROOT / "step3_predictive_model/model_experiments/redesign_single_stock/data/step2_48_bootstrap/step2_48_bootstrap_summary.json"
     step2_48f = json.loads(step2_48_path.read_text()) if step2_48_path.exists() else {}
     step2_48_boot = json.loads(boot_path.read_text()) if boot_path.exists() else {}
 

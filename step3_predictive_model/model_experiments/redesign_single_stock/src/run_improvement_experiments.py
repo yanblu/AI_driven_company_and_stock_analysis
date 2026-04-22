@@ -27,9 +27,13 @@ import pandas as pd
 from sklearn.isotonic import IsotonicRegression
 from sklearn.linear_model import LogisticRegression
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[4]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
+
+_EXP_PARENT = Path(__file__).resolve().parents[2]  # model_experiments/
+if str(_EXP_PARENT) not in sys.path:
+    sys.path.insert(0, str(_EXP_PARENT))
 
 from redesign_single_stock.src.run_redesign_experiments import (
     full_row_calibration,
@@ -40,8 +44,8 @@ from redesign_single_stock.src.run_redesign_experiments import (
 from src.models.walk_forward_config import E10_FOLDS, STRIDE_EVAL
 
 # ── Constants ──────────────────────────────────────────────────────────────
-STATS_PATH = ROOT / "redesign_single_stock/data/round2_stable_core_stats.csv"
-OUT_DIR    = ROOT / "redesign_single_stock/data/improvements"
+STATS_PATH = ROOT / "step3_predictive_model/model_experiments/redesign_single_stock/data/round2_stable_core_stats.csv"
+OUT_DIR    = ROOT / "step3_predictive_model/model_experiments/redesign_single_stock/data/improvements"
 
 TARGET     = "target_excess_xfn_5d"
 THRESHOLD  = 0.003

@@ -17,16 +17,20 @@ import lightgbm as lgb
 import numpy as np
 import pandas as pd
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[4]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
+
+_EXP_PARENT = Path(__file__).resolve().parents[2]  # model_experiments/
+if str(_EXP_PARENT) not in sys.path:
+    sys.path.insert(0, str(_EXP_PARENT))
 
 from redesign_single_stock.src.run_redesign_experiments import label_3class, load_dataset
 
 
-OUT_DIR = ROOT / "redesign_single_stock/data/artifacts"
-STATS_PATH = ROOT / "redesign_single_stock/data/round2_stable_core_stats.csv"
-SUMMARY_PATH = ROOT / "redesign_single_stock/data/round2_summary.csv"
+OUT_DIR = ROOT / "step3_predictive_model/model_experiments/redesign_single_stock/data/artifacts"
+STATS_PATH = ROOT / "step3_predictive_model/model_experiments/redesign_single_stock/data/round2_stable_core_stats.csv"
+SUMMARY_PATH = ROOT / "step3_predictive_model/model_experiments/redesign_single_stock/data/round2_summary.csv"
 THRESHOLD = 0.003
 TARGET = "target_excess_xfn_5d"
 TOP_K = 30

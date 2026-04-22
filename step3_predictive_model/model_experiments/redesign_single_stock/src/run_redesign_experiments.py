@@ -32,7 +32,7 @@ from sklearn.metrics import f1_score
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[4]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
@@ -40,7 +40,7 @@ from src.models.walk_forward_config import E10_FOLDS, STRIDE_EVAL
 
 FEAT_PATH = ROOT / "data/processed/features/model_features_daily.parquet"
 PRICES_PATH = ROOT / "data/raw/prices"
-OUT_DIR = ROOT / "redesign_single_stock/data"
+OUT_DIR = ROOT / "step3_predictive_model/model_experiments/redesign_single_stock/data"
 
 ROUND2_PREFIX = "round2"
 TARGET_THRESHOLD = 0.005  # +/- 50 bps for active under/outperform labels

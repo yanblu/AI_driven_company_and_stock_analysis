@@ -1,19 +1,31 @@
 """
-Leakage-clean within-training-only SHAP stability feature selection.
+Bootstrap SHAP voting feature selection (simpler stability selection).
 
 For each outer fold k:
-1. Take only that fold's training window (data on or before the training cutoff).
-2. Inside that training window, run a short expanding-window walk-forward with
-   multiple inner cutoffs.
-3. For each inner cutoff, fit a shallow LightGBM on the inner training slice and
-   rank features by SHAP on the inner validation slice.
-4. Keep the fold-local stable feature list: features that appear in the top-M
-   (default 30) in a majority of inner windows, capped at MAX_FEATURES.
-5. Retrain on the full fold training window using only the fold-local stable
-   feature list and evaluate on that fold's test window.
+1. Take only that fold's training window (data on or before train_end[k]).
+2. Repeat N times:
+   - Randomly split the training window into a sub-train and a sub-test.
+   - Fit a shallow LightGBM on sub-train.
+   - Compute SHAP importance on sub-test.
+   - Record that bootstrap's top-M features.
+3. Selection frequency per feature = (# bootstraps it appeared in top-M) / N.
+4. Keep features with selection frequency >= FREQ_THRESHOLD, capped at 30.
+   If fewer than 30 clear winners, fill remaining slots by mean SHAP importance.
+5. Retrain on the full fold training window using only those 30 features,
+   evaluate on the outer test window.
 
-Outputs are written under redesign_single_stock/data/improvements/ and never
-overwrite existing redesign artifacts.
+This is the Meinshausen-Buhlmann style stability selection:
+- random subsamples inside the fold training window
+- aggregate by vote frequency, not by raw SHAP magnitude
+- no information from later folds or from the outer test window ever enters
+  the feature list for fold k
+
+Note on the 5-day forward target: a random sub-train/sub-test split can put
+two rows with overlapping forward-return windows in different halves. This is
+only used for feature ranking (SHAP importance), not for any performance claim,
+so the overlap does not contaminate the outer walk-forward evaluation.
+
+Outputs are written under redesign_single_stock/data/improvements/.
 """
 
 from __future__ import annotations
@@ -29,9 +41,13 @@ import lightgbm as lgb
 import numpy as np
 import pandas as pd
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[4]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
+
+_EXP_PARENT = Path(__file__).resolve().parents[2]  # model_experiments/
+if str(_EXP_PARENT) not in sys.path:
+    sys.path.insert(0, str(_EXP_PARENT))
 
 from src.models.walk_forward_config import E10_FOLDS
 from redesign_single_stock.src.run_redesign_experiments import (
@@ -48,19 +64,23 @@ from redesign_single_stock.src.run_redesign_experiments import (
 )
 
 
-OUT_DIR = ROOT / "redesign_single_stock/data/improvements"
-ARTIFACT_DIR = ROOT / "redesign_single_stock/data/artifacts"
+OUT_DIR = ROOT / "step3_predictive_model/model_experiments/redesign_single_stock/data/improvements"
+ARTIFACT_DIR = ROOT / "step3_predictive_model/model_experiments/redesign_single_stock/data/artifacts"
 TARGET = "target_excess_xfn_5d"
 THRESHOLD = 0.003
+
 MAX_FEATURES = 30
-INNER_TOPM = 30
-INNER_SPLIT_FRACTIONS = [0.60, 0.70, 0.80, 0.90]
-MAJORITY_HITS = 3
-EXP_ID = "IMP_ShapStability30"
-TITLE = "Within-training SHAP stability top 30"
+TOPM_PER_BOOTSTRAP = 30
+N_BOOTSTRAPS = 20
+SUBTRAIN_FRACTION = 0.70
+FREQ_THRESHOLD = 0.50
+BASE_SEED = 42
+
+EXP_ID = "IMP_ShapBootstrap30"
+TITLE = "Bootstrap SHAP voting top 30"
 
 BASELINE_EXP_ID = "S2_StaticShap30"
-BASELINE_SUMMARY_PATH = ROOT / "redesign_single_stock/data/round2_summary.csv"
+BASELINE_SUMMARY_PATH = ROOT / "step3_predictive_model/model_experiments/redesign_single_stock/data/round2_summary.csv"
 
 
 def _fit_selector(x_fit: pd.DataFrame, y_fit_enc: np.ndarray) -> lgb.LGBMClassifier:
@@ -82,75 +102,78 @@ def _fit_selector(x_fit: pd.DataFrame, y_fit_enc: np.ndarray) -> lgb.LGBMClassif
     return selector
 
 
-def derive_fold_local_stable_features(
-    train_df: pd.DataFrame, candidate_pool: List[str]
+def bootstrap_vote_features(
+    train_df: pd.DataFrame,
+    candidate_pool: List[str],
+    fold_seed: int,
 ) -> Tuple[List[str], pd.DataFrame]:
+    """Random sub-train / sub-test SHAP voting inside a single fold's training window."""
     label_map = {-1: 0, 0: 1, 1: 2}
-    inner_rows: List[Dict[str, object]] = []
-    n_inner_used = 0
+    rng = np.random.default_rng(fold_seed)
+    n_rows = len(train_df)
+    indices = np.arange(n_rows)
 
-    for frac in INNER_SPLIT_FRACTIONS:
-        split_idx = int(len(train_df) * frac)
-        split_idx = min(max(split_idx, 80), len(train_df) - 40)
-        fit_df = train_df.iloc[:split_idx]
-        val_df = train_df.iloc[split_idx:]
-        if len(val_df) < 20 or len(fit_df) < 80:
+    top_hits = pd.Series(0, index=candidate_pool, dtype=int)
+    importance_sum = pd.Series(0.0, index=candidate_pool, dtype=float)
+    n_bootstraps_used = 0
+
+    for b in range(N_BOOTSTRAPS):
+        shuffled = rng.permutation(indices)
+        cut = int(n_rows * SUBTRAIN_FRACTION)
+        sub_train_idx = shuffled[:cut]
+        sub_test_idx = shuffled[cut:]
+        if len(sub_train_idx) < 80 or len(sub_test_idx) < 40:
             continue
 
-        x_fit = fit_df[candidate_pool]
-        x_val = val_df[candidate_pool]
-        y_fit_cls = label_3class(fit_df[TARGET].values, threshold=THRESHOLD)
+        sub_train = train_df.iloc[sub_train_idx]
+        sub_test = train_df.iloc[sub_test_idx]
+
+        y_fit_cls = label_3class(sub_train[TARGET].values, threshold=THRESHOLD)
         y_fit_enc = np.array([label_map[v] for v in y_fit_cls], dtype=int)
         if len(np.unique(y_fit_enc)) < 2:
             continue
 
+        x_fit = sub_train[candidate_pool]
+        x_val = sub_test[candidate_pool]
+
         selector = _fit_selector(x_fit, y_fit_enc)
         importance = multiclass_shap_importance(selector, x_val)
-        ranked = importance.index.tolist()
-        n_inner_used += 1
 
-        for rank, feature in enumerate(ranked, start=1):
-            inner_rows.append(
-                {
-                    "inner_split_fraction": frac,
-                    "feature": feature,
-                    "rank": rank,
-                    "importance": float(importance[feature]),
-                    "in_inner_topm": rank <= INNER_TOPM,
-                }
-            )
+        importance_sum = importance_sum.add(importance, fill_value=0.0)
+        top_features = importance.index[:TOPM_PER_BOOTSTRAP]
+        top_hits.loc[top_features] += 1
+        n_bootstraps_used += 1
 
-    if n_inner_used == 0:
-        raise RuntimeError("No inner windows produced SHAP rankings.")
+    if n_bootstraps_used == 0:
+        raise RuntimeError("No bootstrap samples were successfully fit.")
 
-    fold_stats_df = pd.DataFrame(inner_rows)
-    agg = (
-        fold_stats_df.groupby("feature", as_index=False)
-        .agg(
-            mean_importance=("importance", "mean"),
-            mean_rank=("rank", "mean"),
-            hits_in_topm=("in_inner_topm", "sum"),
-            n_inner_windows=("in_inner_topm", "count"),
-        )
+    selection_frequency = top_hits / n_bootstraps_used
+    mean_importance = importance_sum / n_bootstraps_used
+
+    stats_df = pd.DataFrame(
+        {
+            "feature": candidate_pool,
+            "selection_frequency": selection_frequency.values,
+            "top_hits": top_hits.values,
+            "n_bootstraps_used": n_bootstraps_used,
+            "mean_importance": mean_importance.reindex(candidate_pool).values,
+        }
     )
-    majority_needed = min(MAJORITY_HITS, n_inner_used)
-    agg["stable"] = agg["hits_in_topm"] >= majority_needed
-    agg = agg.sort_values(
-        ["stable", "hits_in_topm", "mean_importance", "mean_rank"],
-        ascending=[False, False, False, True],
+    stats_df["stable"] = stats_df["selection_frequency"] >= FREQ_THRESHOLD
+    stats_df = stats_df.sort_values(
+        ["stable", "selection_frequency", "mean_importance"],
+        ascending=[False, False, False],
     ).reset_index(drop=True)
 
-    stable_features = agg.loc[agg["stable"], "feature"].tolist()
+    stable_features = stats_df.loc[stats_df["stable"], "feature"].tolist()
     if len(stable_features) >= MAX_FEATURES:
         selected = stable_features[:MAX_FEATURES]
     else:
-        fillers = [f for f in agg["feature"].tolist() if f not in stable_features]
+        fillers = [f for f in stats_df["feature"].tolist() if f not in stable_features]
         selected = stable_features + fillers[: MAX_FEATURES - len(stable_features)]
 
-    agg["selected"] = agg["feature"].isin(selected)
-    agg["n_inner_windows_used"] = n_inner_used
-    agg["majority_needed"] = majority_needed
-    return selected, agg
+    stats_df["selected"] = stats_df["feature"].isin(selected)
+    return selected, stats_df
 
 
 def run_experiment() -> Dict[str, object]:
@@ -170,9 +193,9 @@ def run_experiment() -> Dict[str, object]:
     fold_rows: List[Dict[str, object]] = []
     confusion_matrix_rows: List[Dict[str, object]] = []
     feature_manifest: Dict[str, Dict[str, object]] = {EXP_ID: {}}
-    stability_stats_rows: List[Dict[str, object]] = []
+    stats_rows: List[Dict[str, object]] = []
 
-    for fold_id, train_end, test_start, test_end in E10_FOLDS:
+    for i, (fold_id, train_end, test_start, test_end) in enumerate(E10_FOLDS):
         train_mask = (df["date"] <= pd.Timestamp(train_end)) & df[TARGET].notna()
         test_mask = (
             (df["date"] >= pd.Timestamp(test_start))
@@ -187,23 +210,28 @@ def run_experiment() -> Dict[str, object]:
         )
         test_df = df.loc[test_mask].copy()
 
-        selected_features, agg = derive_fold_local_stable_features(train_df, candidate_pool)
-        agg_rows = agg.to_dict(orient="records")
-        for row in agg_rows:
-            row["fold"] = fold_id
-            stability_stats_rows.append(row)
+        selected_features, stats_df = bootstrap_vote_features(
+            train_df=train_df,
+            candidate_pool=candidate_pool,
+            fold_seed=BASE_SEED + i,
+        )
+        stats_df["fold"] = fold_id
+        stats_rows.extend(stats_df.to_dict(orient="records"))
 
         feature_manifest[EXP_ID][fold_id] = {
-            "feature_mode": "shap_stability_training_only",
+            "feature_mode": "bootstrap_shap_voting",
             "selected_features": selected_features,
             "selection_basis": (
-                "Within-training-only SHAP stability: features that appear in the top "
-                f"{INNER_TOPM} in at least {MAJORITY_HITS} of {len(INNER_SPLIT_FRACTIONS)} inner expanding windows; "
-                "if fewer than 30 stable, remaining slots filled by mean SHAP importance."
+                f"Bootstrap SHAP voting inside the fold's training window: {N_BOOTSTRAPS} random "
+                f"{int(SUBTRAIN_FRACTION * 100)}/{int((1 - SUBTRAIN_FRACTION) * 100)} splits. "
+                f"Features kept if in top-{TOPM_PER_BOOTSTRAP} in at least {int(FREQ_THRESHOLD * 100)}% "
+                "of bootstraps; remaining slots filled by mean SHAP importance to reach 30."
             ),
-            "inner_split_fractions": INNER_SPLIT_FRACTIONS,
+            "n_bootstraps": N_BOOTSTRAPS,
+            "subtrain_fraction": SUBTRAIN_FRACTION,
+            "freq_threshold": FREQ_THRESHOLD,
             "candidate_pool_size": len(candidate_pool),
-            "n_stable_features": int(agg["stable"].sum()),
+            "n_stable_features": int(stats_df["stable"].sum()),
         }
 
         x_train = train_df[selected_features].copy()
@@ -229,7 +257,7 @@ def run_experiment() -> Dict[str, object]:
                 "exp_id": exp.exp_id,
                 "title": exp.title,
                 "target": exp.target,
-                "feature_mode": "shap_stability_training_only",
+                "feature_mode": "bootstrap_shap_voting",
                 "model_kind": exp.model_kind,
                 "threshold": exp.threshold,
                 "feature_count": len(selected_features),
@@ -237,6 +265,7 @@ def run_experiment() -> Dict[str, object]:
                 "train_rows": len(train_df),
                 "test_rows": len(test_df),
                 "adaptive_top_k": exp.adaptive_top_k,
+                "n_stable_features": int(stats_df["stable"].sum()),
                 "accuracy": model_metrics["accuracy"],
                 "macro_f1": model_metrics["macro_f1"],
                 "active_sign_acc": model_metrics["active_sign_acc"],
@@ -310,7 +339,7 @@ def run_experiment() -> Dict[str, object]:
         "class_balance_df": class_balance_df,
         "confusion_df": pd.DataFrame(confusion_matrix_rows),
         "feature_manifest": feature_manifest,
-        "stability_stats_df": pd.DataFrame(stability_stats_rows),
+        "bootstrap_stats_df": pd.DataFrame(stats_rows),
     }
 
 
@@ -341,12 +370,7 @@ def _beats_baseline(candidate: Dict[str, float], baseline: Dict[str, float]) -> 
 
 
 def save_new_locked_artifact(selected_features_per_fold: Dict[str, List[str]]) -> Dict[str, object]:
-    """Train a production-style artifact using the last fold's selected feature list.
-
-    Using the last (most recent) fold respects time ordering: the feature list
-    was chosen without ever seeing test data, and the final model is trained on
-    all labeled data we have today.
-    """
+    """Train a production-style artifact using the last fold's selected feature list."""
     df = load_dataset()
     fold_ids = list(selected_features_per_fold.keys())
     last_fold_features = list(selected_features_per_fold[fold_ids[-1]])
@@ -377,8 +401,8 @@ def save_new_locked_artifact(selected_features_per_fold: Dict[str, List[str]]) -
 
     ARTIFACT_DIR.mkdir(parents=True, exist_ok=True)
     stamp = str(date.today())
-    model_path = ARTIFACT_DIR / f"shap-stability30-best-{stamp}.pkl"
-    meta_path = ARTIFACT_DIR / f"shap-stability30-best-{stamp}.json"
+    model_path = ARTIFACT_DIR / f"shap-bootstrap30-best-{stamp}.pkl"
+    meta_path = ARTIFACT_DIR / f"shap-bootstrap30-best-{stamp}.json"
 
     payload = {
         "model": model,
@@ -392,21 +416,22 @@ def save_new_locked_artifact(selected_features_per_fold: Dict[str, List[str]]) -
         pickle.dump(payload, f)
 
     metadata = {
-        "artifact_id": f"shap-stability30-best-{stamp}",
+        "artifact_id": f"shap-bootstrap30-best-{stamp}",
         "source_experiment": EXP_ID,
         "description": (
-            "Leakage-clean SHAP stability top-30 redesign candidate: "
-            "TD 5-day excess return vs XFN, 3-class, within-training-only "
-            "fold-local SHAP stability selection, shallow LightGBM multiclass."
+            "Leakage-clean bootstrap SHAP voting top-30 redesign candidate: "
+            "TD 5-day excess return vs XFN, 3-class, bootstrap stability "
+            "selection inside each fold's training window, shallow LightGBM."
         ),
         "target": TARGET,
         "threshold": THRESHOLD,
         "features": last_fold_features,
         "feature_selection_method": (
-            "For each outer fold, SHAP stability selection using inner expanding windows "
-            "on the training data only. "
-            f"Top {INNER_TOPM} features per inner window; kept features appearing in at least "
-            f"{MAJORITY_HITS} of {len(INNER_SPLIT_FRACTIONS)} inner windows. "
+            f"For each outer fold, {N_BOOTSTRAPS} random "
+            f"{int(SUBTRAIN_FRACTION * 100)}/{int((1 - SUBTRAIN_FRACTION) * 100)} splits of the "
+            "fold's training window. Fit LightGBM on each sub-train, compute SHAP on the sub-test, "
+            f"keep features appearing in top-{TOPM_PER_BOOTSTRAP} in at least "
+            f"{int(FREQ_THRESHOLD * 100)}% of bootstraps; fill to 30 by mean importance. "
             "Locked artifact uses the last fold's selected feature list trained on all labeled data."
         ),
         "train_rows": int(len(train_df)),
@@ -427,19 +452,19 @@ def main() -> None:
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     outputs = run_experiment()
 
-    summary_path = OUT_DIR / "shap_stability30_summary.csv"
-    folds_path = OUT_DIR / "shap_stability30_fold_metrics.csv"
-    class_balance_path = OUT_DIR / "shap_stability30_class_balance.csv"
-    confusion_path = OUT_DIR / "shap_stability30_confusion_matrices.csv"
-    manifest_path = OUT_DIR / "shap_stability30_feature_manifest.json"
-    stability_stats_path = OUT_DIR / "shap_stability30_inner_stats.csv"
+    summary_path = OUT_DIR / "shap_bootstrap30_summary.csv"
+    folds_path = OUT_DIR / "shap_bootstrap30_fold_metrics.csv"
+    class_balance_path = OUT_DIR / "shap_bootstrap30_class_balance.csv"
+    confusion_path = OUT_DIR / "shap_bootstrap30_confusion_matrices.csv"
+    manifest_path = OUT_DIR / "shap_bootstrap30_feature_manifest.json"
+    stats_path = OUT_DIR / "shap_bootstrap30_vote_stats.csv"
 
     outputs["summary_df"].to_csv(summary_path, index=False)
     outputs["folds_df"].to_csv(folds_path, index=False)
     outputs["class_balance_df"].to_csv(class_balance_path, index=False)
     outputs["confusion_df"].to_csv(confusion_path, index=False)
     manifest_path.write_text(json.dumps(outputs["feature_manifest"], indent=2))
-    outputs["stability_stats_df"].to_csv(stability_stats_path, index=False)
+    outputs["bootstrap_stats_df"].to_csv(stats_path, index=False)
 
     baseline = _load_baseline_metrics()
     candidate = outputs["summary_df"].iloc[0].to_dict()
@@ -452,7 +477,7 @@ def main() -> None:
 
     print(outputs["summary_df"].to_string(index=False, float_format=lambda x: f"{x:.3f}"))
     print(f"\nBaseline S2_StaticShap30 metrics: {baseline}")
-    print(f"Candidate IMP_ShapStability30 metrics: {candidate_metrics}")
+    print(f"Candidate IMP_ShapBootstrap30 metrics: {candidate_metrics}")
 
     beats = _beats_baseline(candidate_metrics, baseline)
     decision_payload = {
@@ -464,7 +489,7 @@ def main() -> None:
             "(candidate macro_f1 >= baseline - 0.01) AND (candidate active_coverage >= 0.70)."
         ),
     }
-    (OUT_DIR / "shap_stability30_decision.json").write_text(
+    (OUT_DIR / "shap_bootstrap30_decision.json").write_text(
         json.dumps(decision_payload, indent=2)
     )
 
@@ -474,7 +499,7 @@ def main() -> None:
             for fold, manifest in outputs["feature_manifest"][EXP_ID].items()
         }
         artifact_info = save_new_locked_artifact(fold_to_features)
-        print(f"\nNew leakage-clean SHAP-stability artifact saved: {artifact_info['model_path']}")
+        print(f"\nNew leakage-clean bootstrap SHAP artifact saved: {artifact_info['model_path']}")
         print(f"Metadata saved: {artifact_info['meta_path']}")
     else:
         print("\nCandidate does not beat S2_StaticShap30 on business metrics; no new artifact saved.")
@@ -484,7 +509,7 @@ def main() -> None:
     print(f"Saved -> {class_balance_path}")
     print(f"Saved -> {confusion_path}")
     print(f"Saved -> {manifest_path}")
-    print(f"Saved -> {stability_stats_path}")
+    print(f"Saved -> {stats_path}")
 
 
 if __name__ == "__main__":
