@@ -1,13 +1,13 @@
-# R07 — Final Model Card
+# lgbm_3class_xfn5d_30f — Model Card
 
 ## Identity
 | Field | Value |
 |---|---|
-| Model ID | `R07` (also labelled `S2_Reduced` in experiment logs) |
+| Model ID | `lgbm_3class_xfn5d_30f` (experiment log label: `R07` / `S2_Reduced`) |
 | Algorithm | LightGBM multiclass classifier |
-| Artifact | `artifacts/r07-current-best-2026-04-21.pkl` |
-| Metadata | `artifacts/r07-current-best-2026-04-21.json` |
-| Saved | 2026-04-21 |
+| Artifact | `artifacts/lgbm_3class_xfn5d_30f_tuned-2026-04-22.pkl` |
+| Metadata | `artifacts/lgbm_3class_xfn5d_30f_tuned-2026-04-22.json` |
+| Saved | 2026-04-22 (hyperparameter-tuned; same params confirmed optimal) |
 
 ## Problem Framing
 TD Bank (TD.TO) directional signal detector — not a decision model. Given information available on day *d*, the model outputs one of three signals for the *next 5 trading days*:
@@ -95,21 +95,83 @@ Event features are constructed from LLM-scored earnings call transcripts, forwar
 | `evt_news_tone` | Rolling 20d mean news sentiment × call decay |
 | `evt_news_flow` | Rolling 20d news count × call decay |
 
-## Validation
-- **Protocol**: Expanding-window walk-forward, 7 folds (`E10_FOLDS`)
-- **Gap**: 5-row buffer between train and test to avoid lookahead
-- **Evaluation**: Stride-5 offset averaging (predictions every day, evaluated on every 5th to avoid overlapping 5-day returns)
+## Training, Holdout & Evaluation
+
+### Model date range
+
+| | Date |
+|---|---|
+| **Feature data start** | 2021-02-25 |
+| **First out-of-sample evaluation** | 2023-01-10 (v1 test start) |
+| **Last out-of-sample evaluation** | 2026-04-09 (v7 test end) |
+| **Artifact locked** | 2026-04-22 |
+
+All day counts below are **trading days** (Monday–Friday, excluding Canadian public holidays). A calendar month contains approximately 21 trading days.
+
+### How the model is trained
+The model uses an **expanding-window walk-forward** protocol. Feature data spans 2021-02-25 to 2026-04-09. It is divided into 7 consecutive folds; in each fold the model is retrained from scratch on all data available up to the fold's cut-off date, then evaluated on the immediately following out-of-sample window. Because the training window grows with each fold, later folds benefit from more historical context.
+
+A **5-trading-day boundary gap** is enforced between the last training row and the first test row. This ensures the 5-day forward return used as the target cannot bleed from the test window back into training features.
+
+### Holdout periods (7 folds)
+
+| Fold | Train window | Test window | Test trading days | Note |
+|---|---|---|---|---|
+| v1 | 2021-02-25 → 2022-12-30 | 2023-01-10 → 2023-06-30 | 121 | |
+| v2 | 2021-02-25 → 2023-06-30 | 2023-07-11 → 2023-12-29 | 119 | |
+| v3 | 2021-02-25 → 2023-12-29 | 2024-01-09 → 2024-06-28 | 121 | |
+| v4 | 2021-02-25 → 2024-06-28 | 2024-07-09 → 2024-12-31 | 121 | AML peak |
+| v5 | 2021-02-25 → 2024-12-31 | 2025-01-09 → 2025-06-30 | 120 | Weakest fold |
+| v6 | 2021-02-25 → 2025-06-30 | 2025-07-09 → 2025-12-31 | 121 | Best fold |
+| v7 | 2021-02-25 → 2025-12-31 | 2026-01-09 → 2026-04-09 | 63 | 3 calendar months |
+
+The train window always starts from **2021-02-25** (expanding-window design — every fold trains on all available history from the data start). Fold v4 coincides with the peak of TD's AML regulatory period and is the most stress-tested window. Fold v7 has 63 trading days because it runs to the artifact lock date.
+
+### How the model is evaluated
+The target is a **5-day forward return**, so consecutive daily predictions overlap — day *d*'s label is resolved at day *d+5*, and the same price move contributes to labels for days *d*, *d−1*, *d−2*, *d−3*, and *d−4*. Evaluating every row would overstate confidence by counting the same return five times.
+
+To correct for this, evaluation uses **stride-5 offset averaging**:
+1. For each of the 5 possible starting offsets (0, 1, 2, 3, 4), select every 5th test row.
+2. Compute metrics on that non-overlapping sub-sequence.
+3. Average the 5 offset metrics to get the reported fold metric.
+
+This produces an unbiased estimate equivalent to treating each 5-day return as a single independent observation.
+
+**Metrics reported:**
+
+| Metric | Definition |
+|---|---|
+| Mean accuracy | Fraction of predictions that match the exact 3-class label (−1, 0, +1) |
+| Macro F1 | Unweighted F1 averaged across all three classes |
+| Active coverage | Fraction of days the model takes a non-neutral position (predicts ±1) |
+| Active sign accuracy | Among active predictions, fraction where the predicted direction matches the realized direction of the excess return (ignoring the band) |
+| DirAcc_abstain50 | Blended directional accuracy treating abstentions as 50/50: `active_sign_acc × coverage + 0.5 × (1 − coverage)` |
+| Dir AUC | Threshold-free discrimination metric: average of one-vs-rest AUC for the outperform (+1) and underperform (−1) signals, computed from class probability scores. Analogous to binary AUC — a random model scores 0.50. Computed with the same stride-5 offset averaging as other metrics. |
 
 ## Performance (7-fold walk-forward average)
 
-### R07 Model
+### Per-Fold Results
+| Fold | Train rows | Test rows | Mean Acc | Macro F1 | Active Cov | Active Sign Acc | Dir AUC |
+|---|---|---|---|---|---|---|---|
+| v1 (H1 2023) | 464 | 121 | 0.504 | 0.385 | 0.959 | 0.671 | 0.622 |
+| v2 (H2 2023) | 590 | 119 | 0.437 | 0.355 | 0.942 | 0.571 | 0.574 |
+| v3 (H1 2024) | 714 | 121 | 0.447 | 0.305 | 0.909 | 0.610 | 0.543 |
+| v4 (H2 2024 — AML peak) | 840 | 121 | 0.553 | 0.437 | 0.959 | 0.664 | 0.643 |
+| v5 (H1 2025 — weakest) | 966 | 120 | 0.292 | 0.209 | 0.933 | 0.357 | 0.329 |
+| v6 (H2 2025 — best) | 1091 | 121 | 0.553 | 0.482 | 0.934 | 0.717 | 0.709 |
+| v7 (Q1 2026) | 1217 | 63 | 0.494 | 0.338 | 0.967 | 0.611 | 0.545 |
+| **7-fold mean** | | | **0.468** | **0.359** | **0.943** | **0.600** | **0.566** |
+
+### Aggregate Summary
 | Metric | Value |
 |---|---|
-| Mean accuracy | ~45% |
-| Macro F1 | ~0.38 |
-| Active coverage | ~87% |
-| Active sign accuracy | ~57% |
-| DirAcc_abstain50 | ~0.54 |
+| Mean accuracy | 46.8% |
+| Macro F1 | 0.359 |
+| Active coverage | 94.3% |
+| Active sign accuracy | 60.0% |
+| Dir AUC | 0.566 (random baseline = 0.50) |
+| DirAcc_strict (coverage-weighted) | 56.7% |
+| DirAcc_abstain50 (abstain = 50/50) | 59.5% |
 
 ### Baselines (same 7-fold average)
 Three baselines are reported. The **majority** and **momentum** baselines are the most relevant benchmarks for a pension context — a pension mandate typically cannot default to always-long because it must manage drawdown risk and is often constrained to act symmetrically on long and short exposures.
@@ -120,9 +182,9 @@ Three baselines are reported. The **majority** and **momentum** baselines are th
 | **Momentum** | Predict continuation of TD's recent 5-day relative performance vs XFN | ~36.6% | ~79% | ~39.0% |
 | Always-long | Always predict outperform (+1) | ~43% | 100% | ~43% |
 
-**Key insight**: R07's active sign accuracy of ~57% represents a **+18 percentage-point lift** over the majority baseline (~38.5%) and a **+18pp lift** over momentum (~39%) — the two baselines most appropriate for a pension mandate. The always-long baseline (43%) is shown for reference only; it is not a realistic strategy for a risk-constrained institutional investor because it has no mechanism for capital preservation in drawdown periods.
+**Key insight**: The model's active sign accuracy of **60%** represents a **+21 percentage-point lift** over the majority baseline (~38.5%) and a **+21pp lift** over momentum (~39%) — the two baselines most appropriate for a pension mandate. The always-long baseline (43%) is shown for reference only; it is not a realistic strategy for a risk-constrained institutional investor because it has no mechanism for capital preservation in drawdown periods.
 
-The model functions as a **directional signal detector**: ~57% of the time it takes a non-neutral position, that position is in the correct direction relative to the XFN sector. It does not predict magnitude.
+The model functions as a **directional signal detector**: 60% of the time it takes a non-neutral position, that position is in the correct direction relative to the XFN sector. It does not predict magnitude.
 
 ## Reproducibility
 
@@ -135,7 +197,7 @@ ROOT = Path('...')  # project root
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / 'step3_predictive_model/model_experiments'))
 
-with open('artifacts/r07-current-best-2026-04-21.pkl', 'rb') as f:
+with open('artifacts/lgbm_3class_xfn5d_30f_tuned-2026-04-22.pkl', 'rb') as f:
     artifact = pickle.load(f)
 
 model     = artifact['model']
@@ -150,10 +212,11 @@ signals   = [inv_map[p] for p in preds_enc]   # -1, 0, or +1
 ```
 
 ### Retrain from scratch
-Run `save_r07_artifact.py` (located in `final_model/` for convenience, or the canonical version in `model_experiments/redesign_single_stock/src/`):
+Run the training notebook end-to-end — it performs the full hyperparameter search, selects the best config, trains on all available data, and saves a new dated artifact:
 ```bash
 cd <project_root>
-.venv/bin/python step3_predictive_model/final_model/save_r07_artifact.py
+.venv/bin/jupyter nbconvert --to notebook --execute --inplace \
+    step3_predictive_model/final_model/lgbm_3class_xfn5d_30f_training.ipynb
 ```
 
 ## Limitations
