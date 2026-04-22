@@ -1,0 +1,20 @@
+{
+  "exp_id": "STEP2_48F_Boot30",
+  "n_folds": 7,
+  "candidate_pool_size": 48,
+  "threshold": 0.003,
+  "max_features": 30,
+  "mean_accuracy": 0.4420807453416149,
+  "mean_macro_f1": 0.3305160980827742,
+  "mean_active_sign_acc": 0.5625041630569966,
+  "mean_active_coverage": 0.9336066252587992,
+  "mean_majority_accuracy": 0.38477257525083614,
+  "mean_momentum_accuracy": 0.36643653448001273,
+  "mean_active_precision_pos": 0.46532878631234603,
+  "mean_active_precision_neg": 0.4141925960182549,
+  "mean_predicted_max_share": 0.6224773931611212,
+  "mean_feature_count": 30.0,
+  "mean_n_stable_features": 31.571428571428573,
+  "uplift_vs_majority_pp": 5.730817009077876,
+  "uplift_vs_momentum_pp": 7.564421086160217
+}

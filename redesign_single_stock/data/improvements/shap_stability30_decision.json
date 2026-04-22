@@ -1,0 +1,16 @@
+{
+  "candidate": {
+    "mean_accuracy": 0.4280611562350693,
+    "mean_macro_f1": 0.31205010132494765,
+    "mean_active_sign_acc": 0.5453290817641913,
+    "mean_active_coverage": 0.9289440993788821
+  },
+  "baseline_s2_staticshap30": {
+    "mean_accuracy": 0.4451036789297659,
+    "mean_macro_f1": 0.3433772967082226,
+    "mean_active_sign_acc": 0.568128810458003,
+    "mean_active_coverage": 0.9087897754419494
+  },
+  "beats_baseline": false,
+  "criteria": "beats_baseline = (candidate active_sign_acc > baseline) AND (candidate macro_f1 >= baseline - 0.01) AND (candidate active_coverage >= 0.70)."
+}
