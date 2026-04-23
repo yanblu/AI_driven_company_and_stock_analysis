@@ -33,7 +33,7 @@ import pandas as pd
 # ---------------------------------------------------------------------------
 # Paths
 # ---------------------------------------------------------------------------
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[3]
 RAW_PRICES = ROOT / "data/raw/prices"
 RAW_MACRO = ROOT / "data/raw/macro"
 NLP_PATH = ROOT / "data/processed/features/nlp_features.parquet"

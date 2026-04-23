@@ -6,7 +6,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[3]
 PATH = ROOT / "data/processed/features/model_features_daily.parquet"
 
 CALL_DATES = {

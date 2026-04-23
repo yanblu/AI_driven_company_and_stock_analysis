@@ -1,6 +1,16 @@
-# lgbm_3class_xfn5d_30f — Feature Engineering
+# lgbm_3class_xfn5d_35f — Feature Engineering
 
-This document describes how each of the 30 features used in the final model is constructed. All features are computed at **daily grain** and stored in `model_features_daily.parquet`.
+This document describes how each of the 35 features used in the final model is constructed. All features are computed at **daily grain** and stored in `model_features_daily.parquet`.
+
+---
+
+## Feature selection methodology
+
+The 35 features are the result of two stages of selection:
+
+**Stage 1 — Domain-driven baseline (30 features):** The initial feature set was assembled by hand, combining economically motivated market/price signals, macro indicators, news flow proxies, earnings-calendar timing variables, and 11 NLP event features derived from LLM-scored earnings call transcripts. The motivation and construction logic for each feature in this block is described in detail below. This 30-feature set was validated as the winning configuration (R07) across seven dimensions of the Round 1 experiment.
+
+**Stage 2 — SHAP-guided TA screening (+5 features):** After locking the 30-feature baseline, a targeted experiment screened 25 Qlib-style technical analysis candidates. Each candidate was evaluated using fold-local SHAP feature importance across all 7 walk-forward folds; only features that showed consistently non-zero SHAP contributions in the majority of folds were retained. Five features passed this bar and were added to produce the final 35-feature model. Hyperparameters were re-tuned after adding these features (see `modeling_choices.md`).
 
 ---
 
@@ -12,11 +22,20 @@ All 11 NLP event features share an exponential decay anchored to the last earnin
 call_decay = exp(−days_since_call / 20)
 ```
 
-The half-life of 20 trading days means a signal that was 1.0 on call day has decayed to ~0.5 after 4 calendar weeks. This reflects how earnings-call information enters and fades from the market. A parallel decay with a 15-day half-life is used for news-anchored features:
+τ = 20 gives a half-life of ≈ 14 trading days (~3 calendar weeks), consistent with the post-earnings-announcement drift (PEAD) literature showing that abnormal returns following earnings surprises are concentrated in the weeks immediately after the call (Bernard & Thomas, 1989). Meursault et al. (2021) extend this to text-based signals specifically, finding that NLP-scored earnings call transcripts generate the sharpest return predictability in the near-term post-announcement window — directly analogous to the `evt_*` features here.
+
+> Bernard & Thomas (1989), *Journal of Accounting Research*, 27, 1–36.
+> Meursault et al. (2021), PEAD.txt, *Journal of Financial and Quantitative Analysis*, 58(6), 2299–2326.
+
+A parallel decay with τ = 15 is used for news-anchored features:
 
 ```
 news_decay = exp(−days_since_last_news / 15)
 ```
+
+τ = 15 gives a half-life of ≈ 10 trading days (~2 calendar weeks). Heston & Sinha (2017) show that daily news sentiment predicts returns for only 1–2 days while weekly-aggregated sentiment predicts up to 13 weeks; the 2-week half-life targets the transition between these regimes. The shorter τ relative to earnings calls reflects that individual press releases are lower-stakes and compete with continuous news flow, so their marginal signal fades faster.
+
+> Heston & Sinha (2017), *Financial Analysts Journal*, 73(3), 67–83. (Fed FEDS Working Paper 2016-048.)
 
 ---
 
@@ -178,6 +197,20 @@ Log-scaled 30-day news volume, decayed by news recency. Log scaling prevents a b
 
 ---
 
+## Block 7 — TA / Qlib Additions (5 features)
+
+These five features were added via the SHAP-guided TA screening described in the selection methodology above. They capture trend quality, volume conviction, and market sensitivity — dimensions not fully covered by the 30-feature baseline. The candidate pool was drawn from Qlib's open-source alpha expression library (Microsoft Research, [github.com/microsoft/qlib](https://github.com/microsoft/qlib)), which provides a standardised, peer-reviewed catalogue of technical factors widely used in quantitative equity research. Qlib is a good reference here because its factor definitions are reproducible, documented with economic rationale, and have been validated across multiple markets — providing a credible, auditable source for the TA candidates screened in this project rather than ad hoc feature engineering.
+
+| Feature | Construction | Rationale |
+|---|---|---|
+| `td_rsqr_60d` | R² of a 60-day rolling OLS regression of TD log-price on time | Measures trend quality: high R² means price has moved smoothly in one direction; low R² indicates choppiness with no persistent trend |
+| `td_wvma_5d` | 5-day volume-weighted moving average of TD price | Short-horizon volume-weighted price anchor; captures where price has been relative to trade activity in the near term |
+| `td_wvma_20d` | 20-day volume-weighted moving average of TD price | Medium-horizon equivalent; combined with `td_wvma_5d`, allows the model to detect whether short-term price is running above or below its volume-weighted trend |
+| `td_corr_pv_5d` | 5-day rolling Pearson correlation between TD daily price change and daily volume | Short-window analogue to `td_corr_pv_20d` (already in Block 1); captures intraday volume-driven conviction on a much finer horizon |
+| `td_beta_20d` | 20-day rolling OLS beta of TD daily return on TSX daily return | Time-varying market sensitivity; a rising beta signals TD is becoming more correlated with broad market moves and less idiosyncratic |
+
+---
+
 ## Summary table
 
 | # | Feature | Block | Raw source(s) | Transformation |
@@ -212,3 +245,8 @@ Log-scaled 30-day news volume, decayed by news recency. Log scaling prevents a b
 | 28 | `evt_topic_entropy` | NLP Event | Topic distribution entropy | Entropy × call_decay |
 | 29 | `evt_news_tone` | NLP Event | news_sent_mean_30d | Sentiment × news_decay |
 | 30 | `evt_news_flow` | NLP Event | news_count_30d | log(1 + count) × news_decay |
+| 31 | `td_rsqr_60d` | TA / Qlib | TD adj_close | R² of 60-day OLS price-on-time regression |
+| 32 | `td_wvma_5d` | TA / Qlib | TD price, volume | 5-day volume-weighted moving average |
+| 33 | `td_wvma_20d` | TA / Qlib | TD price, volume | 20-day volume-weighted moving average |
+| 34 | `td_corr_pv_5d` | TA / Qlib | TD price change, volume | 5-day price-volume correlation |
+| 35 | `td_beta_20d` | TA / Qlib | TD return, TSX return | 20-day rolling OLS beta |

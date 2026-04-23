@@ -18,10 +18,10 @@ from pathlib import Path
 
 import pandas as pd
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
-from src.preprocess.chunking import make_chunk_records  # noqa: E402
-from src.preprocess.cleaning import (  # noqa: E402
+from step1_data_collection.src.preprocess.chunking import make_chunk_records  # noqa: E402
+from step1_data_collection.src.preprocess.cleaning import (  # noqa: E402
     clean_text,
     parse_transcript,
     tag_sections,

@@ -1,10 +1,10 @@
-# NLP event-feature design, grounded in `docs/step2_analysis.md`
+# NLP event-feature design, grounded in `docs/README.md`
 
 ## Purpose
 
 The previous redesign used a mix of event-style NLP features chosen partly by intuition and partly by SHAP ranking. This document re-anchors the NLP feature block in the **Step 2 analytical findings** — which patterns were empirically validated as high-confidence, medium-confidence, or noise — and derives a compact daily event-feature set directly from that evidence.
 
-The goal is traceability: every daily event feature should map back to a named finding in `docs/step2_analysis.md` so the feature set can be defended to stakeholders and audited later.
+The goal is traceability: every daily event feature should map back to a named finding in `docs/README.md` so the feature set can be defended to stakeholders and audited later.
 
 Scope:
 
@@ -192,7 +192,7 @@ Result: **17 event-style NLP features** instead of the current 13, every one tra
 
 ## 6. Why this is a sounder design
 
-1. **Every feature maps to a named Step 2 finding.** If SHAP rejects a feature on a fold, we know which analytical claim we are failing to monetise. If SHAP accepts one, we can point to the passage in `docs/step2_analysis.md` that motivated it. This is the audit trail we did not have.
+1. **Every feature maps to a named Step 2 finding.** If SHAP rejects a feature on a fold, we know which analytical claim we are failing to monetise. If SHAP accepts one, we can point to the passage in `docs/README.md` that motivated it. This is the audit trail we did not have.
 2. **The two known blind spots of the previous event block are filled.**
    - *Multi-source corroboration* (`evt_source_dispersion`) addresses what Step 2 calls out as the distinctive property of the AML narrative: it moved across transcripts, filings, and news in sync. No single-source feature captures this.
    - *Reliability weighting* (`evt_transcript_reliability`) operationalises the L2 caveat explicitly instead of hoping the tree model picks it up by accident.

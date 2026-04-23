@@ -1,6 +1,6 @@
-# lgbm_3class_xfn5d_30f — Modeling Choices
+# lgbm_3class_xfn5d_35f — Modeling Choices
 
-This document explains why the final model is configured the way it is, tracing the key decisions through the experiment history that produced it. The model was labelled **R07** in the experiment log. The full experiment log lives in `model_experiments/redesign_single_stock/redesign_single_stock_experiments.md`.
+This document explains why the final model is configured the way it is, tracing the key decisions through the experiment history that produced it. The base configuration was labelled **R07** in the experiment log; the final 35-feature model adds 5 TA/Qlib features selected via a SHAP-guided screening experiment. The full experiment log lives in `model_experiments/redesign_single_stock/redesign_single_stock_experiments.md`.
 
 ---
 
@@ -84,6 +84,20 @@ With ~1,285 daily training rows and 180 features, the full-feature model overfit
 
 ---
 
+## Decision 5 — TA feature additions: 5 Qlib-style features on top of the 30-feature base
+
+After locking the 30-feature model as the reference point, a targeted experiment was run to evaluate whether a curated set of technical analysis (TA) features from the Qlib feature library could improve directional accuracy without re-opening the overfitting risk identified in Decision 3.
+
+**Selection process**: 25 TA candidates were screened using fold-local SHAP importance across all 7 walk-forward folds. Features with consistently non-zero SHAP values across the majority of folds were retained. Five features passed this bar: `td_rsqr_60d` (60-day R² of a price trend regression), `td_wvma_5d` and `td_wvma_20d` (volume-weighted moving averages at two horizons), `td_corr_pv_5d` (short-window price-volume correlation), and `td_beta_20d` (20-day rolling beta to the market). These measure trend quality, volume conviction, and market sensitivity — dimensions not fully captured by the existing 30 features.
+
+**Hyperparameter re-tuning**: expanding the feature set from 30 to 35 changed the optimal tree complexity. A 36-configuration grid search (num_leaves ∈ {4,8,16,31}, min_child_samples ∈ {20,40,60}, n_estimators ∈ {80,120,200}, composite score = 0.6×ASA + 0.4×Macro F1) found that shallower trees (`num_leaves=4`) become optimal at 35 features — the additional features provide more decision axes, so the model needs fewer leaf splits to capture the same interactions.
+
+**Outcome**: the 35-feature model ("Combo J tuned") improved active sign accuracy by +0.5pp (60.0% → 60.5%), Dir AUC by +0.6pp (0.566 → 0.572), and coverage by +2.5pp (94.3% → 96.8%) relative to the tuned 30-feature baseline, while holding comparable macro F1. The improvement is modest but consistent across folds, justifying the addition.
+
+**Conclusion**: SHAP-guided TA screening is a disciplined way to extend the feature set without reintroducing the overfitting problem seen with full 180-feature models. The 35-feature model is adopted as the final configuration.
+
+---
+
 ## Decision 4 — Model family: LightGBM, not logistic regression
 
 Comparing R07 (LightGBM) against R06 (logistic regression, identical target and features):
@@ -123,10 +137,12 @@ Key observations:
 
 ## Final hyperparameter choices
 
+Selected via 36-configuration grid search across all 7 folds on the 35-feature model (composite score = 0.6×ASA + 0.4×Macro F1).
+
 | Parameter | Value | Reason |
 |---|---|---|
-| `num_leaves` | 8 | Shallow trees — avoids memorising single-stock regime patterns |
-| `n_estimators` | 120 | Enough boosting rounds to fit signal; early stopping not needed given `min_child_samples` constraint |
+| `num_leaves` | 4 | Shallower than the 30-feature baseline (8 leaves) — optimal at 35 features on ~1,285 rows |
+| `n_estimators` | 80 | Fewer rounds needed; shallow trees with `num_leaves=4` reach signal faster |
 | `learning_rate` | 0.05 | Conservative learning rate; works well with shallow trees |
 | `min_child_samples` | 40 | Prevents any leaf from fitting on fewer than 40 rows (~3% of training data); strong overfitting guard |
 | `feature_fraction` | 0.8 | Subsample features per tree for variance reduction |
@@ -136,13 +152,14 @@ Key observations:
 
 ---
 
-## Summary: why lgbm_3class_xfn5d_30f is the final model
+## Summary: why lgbm_3class_xfn5d_35f is the final model
 
-This configuration (R07 in the experiment log) is the only one that simultaneously solves all four design problems:
+This configuration solves all five design problems:
 
 1. **Target** — relative to sector (XFN), removing positive-drift bias
 2. **Decision framing** — tight ±0.3% neutral band giving clean labels
-3. **Features** — 30 event-style features with the right row-to-feature ratio for single-stock data
-4. **Model** — shallow LightGBM that outperforms all alternatives tested (logistic regression, elastic net, XGBoost)
+3. **Base features** — 30 event-style features with the right row-to-feature ratio for single-stock data (R07 baseline)
+4. **Model family** — shallow LightGBM that outperforms all alternatives tested (logistic regression, elastic net, XGBoost)
+5. **TA extensions** — 5 Qlib-style features added via SHAP-guided screening, with hyperparameters re-tuned on the expanded set
 
-No subsequent experiment across Rounds 2–6 produced a configuration that beat R07 on the business-relevant metrics (active sign accuracy, macro F1) while remaining methodologically sound. R07 is therefore selected as the final model and saved as `lgbm_3class_xfn5d_30f`.
+The 35-feature "Combo J tuned" variant is the only subsequent configuration that improved on R07's business-relevant metrics (active sign accuracy, macro F1, Dir AUC) while remaining methodologically sound. It is therefore selected as the final model and saved as `lgbm_3class_xfn5d_35f`.
