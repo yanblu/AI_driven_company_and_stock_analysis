@@ -1,0 +1,74 @@
+{
+  "date": "2026-04-23",
+  "target": "target_excess_xfn_5d",
+  "threshold": 0.003,
+  "train_window_days": 504,
+  "quarter_days": 63,
+  "gap_days": 5,
+  "stride": 5,
+  "features": {
+    "price": [
+      "td_return_5d",
+      "td_return_20d",
+      "td_return_60d",
+      "td_vs_xfn_5d",
+      "td_dist_52w_high",
+      "td_volatility_20d",
+      "td_volume_change_5d"
+    ],
+    "transcript": [
+      "exec_tone_ffill",
+      "transcript_analyst_qa_sentiment_mean_ffill",
+      "framing_gap_ffill",
+      "topic_guidance_share_ffill",
+      "topic_guidance_sentiment_ffill",
+      "topic_regulatory_AML_share_ffill",
+      "topic_regulatory_AML_sentiment_ffill",
+      "topic_credit_quality_share_ffill",
+      "topic_credit_quality_sentiment_ffill",
+      "days_since_call"
+    ],
+    "news": [
+      "news_sent_mean_7d",
+      "news_sent_mean_30d",
+      "news_count_7d",
+      "news_count_30d",
+      "days_since_last_news"
+    ]
+  },
+  "best_params": {
+    "price": {
+      "max_depth": 3,
+      "min_child_weight": 30,
+      "n_estimators": 80,
+      "reg_alpha": 0.2,
+      "reg_lambda": 2.0,
+      "learning_rate": 0.05,
+      "subsample": 0.8,
+      "colsample_bytree": 0.8,
+      "tree_method": "hist"
+    },
+    "transcript": {
+      "max_depth": 4,
+      "min_child_weight": 20,
+      "n_estimators": 80,
+      "reg_alpha": 0.2,
+      "reg_lambda": 1.0,
+      "learning_rate": 0.05,
+      "subsample": 0.8,
+      "colsample_bytree": 0.8,
+      "tree_method": "hist"
+    },
+    "news": {
+      "max_depth": 2,
+      "min_child_weight": 30,
+      "n_estimators": 50,
+      "reg_alpha": 0.2,
+      "reg_lambda": 2.0,
+      "learning_rate": 0.05,
+      "subsample": 0.8,
+      "colsample_bytree": 0.8,
+      "tree_method": "hist"
+    }
+  }
+}

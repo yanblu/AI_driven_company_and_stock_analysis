@@ -1,0 +1,43 @@
+{
+  "artifact_id": "lgbm_quarterly_expanding-2026-04-23",
+  "model_name": "lgbm_quarterly_expanding",
+  "window_type": "expanding_quarterly",
+  "gap_days": 5,
+  "created": "2026-04-23",
+  "best_params": {
+    "num_leaves": 16,
+    "min_child_samples": 40,
+    "n_estimators": 100,
+    "learning_rate": 0.05,
+    "feature_fraction": 0.8,
+    "reg_alpha": 0.2,
+    "reg_lambda": 1.0
+  },
+  "features": [
+    "td_return_5d",
+    "td_return_20d",
+    "td_vs_xfn_5d",
+    "td_dist_52w_high",
+    "news_sent_mean_30d",
+    "news_count_30d",
+    "days_since_last_news",
+    "days_since_call",
+    "is_earnings_week",
+    "evt_exec_tone",
+    "evt_framing_gap",
+    "evt_guidance_topic",
+    "evt_guidance_sentiment",
+    "evt_aml_topic",
+    "evt_aml_sentiment"
+  ],
+  "target": "target_excess_xfn_5d",
+  "threshold": 0.003,
+  "n_folds_evaluated": 13,
+  "performance_summary": {
+    "mean_acc": 0.3857001972386588,
+    "macro_f1": 0.29878448432747073,
+    "active_cov": 0.9300788954635107,
+    "active_asa": 0.5082490586336741,
+    "composite": 0.42446322891119276
+  }
+}
