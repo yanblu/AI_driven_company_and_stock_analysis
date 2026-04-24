@@ -1,177 +1,100 @@
 # Model Explainability
 
-SHAP analysis is run on pooled out-of-sample test data across all 13 walk-forward folds. Each fold contributes its own test-set predictions and SHAP values; these are combined before computing mean |SHAP| per feature. Beeswarm and walk-forward importance plots are generated in `notebooks/xgb_ensemble_v2_performance.ipynb` (Sections 8–9).
+SHAP is a technique that measures how much each input feature contributed to a given prediction. The observations below are drawn from pooled out-of-sample data across all 13 evaluation quarters. Beeswarm and walk-forward importance plots are in `notebooks/xgb_ensemble_v2_performance.ipynb` (Sections 8–9).
 
-Results are shown separately for the **+1** (TD outperforms XFN) and **−1** (TD underperforms XFN) classes, since XGBoost produces class-specific SHAP values under `multi:softprob`.
+Each model produces separate signals for the **+1** (TD outperforms XFN) and **−1** (TD underperforms XFN) predictions. Where a feature drives both directions symmetrically, the two are covered in a single point.
 
 ---
 
 ## Model 1 — Price
 
-### Mean |SHAP| across all OOS folds
-
-| Rank | Feature | Mean \|SHAP\| (+1) | Mean \|SHAP\| (−1) |
-|---|---|---|---|
-| 1 | `td_dist_52w_high_v2` | **0.197** | **0.214** |
-| 2 | `td_vs_xfn_20d` | 0.123 | 0.091 |
-| 3 | `td_return_20d` | 0.122 | 0.159 |
-| 4 | `td_vs_xfn_5d` | 0.103 | 0.087 |
-| 5 | `td_volatility_20d` | 0.081 | 0.123 |
-| 6 | `td_return_5d` | 0.064 | 0.093 |
-
 ### Observations
 
-- **`td_dist_52w_high_v2` dominates both classes** — how close or far TD's stock price sits relative to its 52-week high is the single most influential price signal, acting as a regime anchor for the model.
-  - **What drives the call**: When TD is trading near its 52-week high, the model reads this as a healthy momentum environment and becomes more likely to call **outperformance**. When TD is well below its 52-week high — sitting in a prolonged drawdown — the model reads this as a weak regime and is more likely to call **underperformance**. Think of it as: being near the top of the year's range means the stock has been doing well and tends to keep doing well vs. the sector.
+- **`td_dist_52w_high_v2`**
+  - **What it measures**: How far TD's stock is from its 52-week high. Near zero = trading at its annual peak; more negative = deeper drawdown.
+  - **What we observe**: TD near its 52-week high → model calls outperformance. TD well below it → model calls underperformance. The pattern is symmetric and this is the model's single strongest signal.
+  - **What this suggests**: The model treats 52-week proximity as a momentum regime indicator. Stocks near their annual peak tend to keep outperforming; stocks in prolonged drawdown tend to keep lagging the sector.
 
-- **Outperformance is predicted by how TD is doing *relative to the financial sector*, not in absolute terms.**
-  - **`td_vs_xfn_20d` / `td_vs_xfn_5d`**: When TD has been outpacing the XFN financials ETF over the past 20 or 5 days, the model sees this as continuing momentum and is more likely to call **outperformance** in the coming week. When TD has been lagging the sector, the model leans toward **underperformance**. Relative strength matters more than raw price gains.
-  - **`td_return_20d` / `td_return_5d`**: Strong absolute gains generally push the model toward **outperformance**. However, when recent gains have been large *and* the stock has been unusually volatile, the model can flip toward **underperformance** — treating a sharp, volatile move as overextended rather than sustainable.
+- **`td_return_20d`**
+  - **What it measures**: TD's total price return over the past month (20 trading days).
+  - **What we observe**: A strong positive month → model leans outperformance. A flat or negative month → model leans underperformance. Notably, losses trigger a stronger reaction than equivalent gains — the model is more sensitive to recent weakness than recent strength.
+  - **What this suggests**: Momentum matters in both directions, but a losing month is a more reliable warning than a winning month is a bullish signal. The model has learned that downside momentum is stickier than upside momentum for this stock.
 
-- **`td_volatility_20d`** — how much TD's price has been swinging day-to-day over the last month — matters more for predicting underperformance (0.123) than outperformance (0.081).
-  - **What drives the call**: When daily price swings have been large and erratic, the model becomes more likely to call **underperformance**. High volatility amplifies the chance of a weak 5-day stretch relative to the sector. When price action is calm and steady, the model sees a quiet, stable environment and is mildly more likely to call **outperformance**.
+- **`td_volatility_20d`**
+  - **What it measures**: How erratically TD's stock has been moving day-to-day over the past month.
+  - **What we observe**: High, choppy volatility → model tilts toward underperformance. Calm, stable price action → mild tilt toward outperformance. The downside reaction is noticeably stronger than the upside — this is primarily a risk alarm, not a balanced two-way signal.
+  - **What this suggests**: Turbulent price action is a warning sign on its own. Stability, however, is not enough to call outperformance — the model still needs positive momentum signals alongside it.
 
 ---
 
 ## Model 2 — Transcript
 
-### Mean |SHAP| across all OOS folds
-
-| Rank | Feature | Mean \|SHAP\| (+1) | Mean \|SHAP\| (−1) |
-|---|---|---|---|
-| 1 | `days_since_call` | **0.227** | **0.260** |
-| 2 | `topic_regulatory_AML_share_ffill` | 0.123 | 0.071 |
-| 3 | `transcript_analyst_qa_sentiment_mean_ffill` | 0.087 | 0.079 |
-| 4 | `framing_gap_ffill` | 0.060 | 0.038 |
-| 5 | `topic_credit_quality_share_ffill` | 0.044 | 0.034 |
-| 6 | `topic_credit_quality_sentiment_ffill` | 0.040 | 0.078 |
-| 7 | `topic_regulatory_AML_sentiment_ffill` | 0.040 | 0.023 |
-| 8 | `topic_guidance_sentiment_ffill` | 0.037 | 0.023 |
-| 9 | `exec_tone_ffill` | 0.026 | 0.075 |
-| 10 | `topic_guidance_share_ffill` | 0.023 | 0.033 |
-
 ### Observations
 
-- **`days_since_call`** is the most influential feature in the transcript model (importance 0.227 for +1, 0.260 for −1) — how recently an earnings call happened matters more than what was actually said.
-  - **What drives the call**: This feature does not predict a direction on its own — instead it controls how much the model trusts the other transcript signals. In the first few weeks after an earnings call, the model relies heavily on what was discussed and how executives sounded. As the quarter ages and the call becomes stale (past 60 days), the model stops leaning on transcript signals and drifts toward a neutral view — the call's information has been digested by the market. The model learns this decay automatically, without being given an explicit rule.
+- **`days_since_call`**
+  - **What it measures**: How many trading days have passed since TD's last earnings call.
+  - **What we observe**: This feature doesn't point toward outperformance or underperformance on its own — it controls how much the other transcript signals matter. Fresh call (recent weeks) → model trusts and acts on transcript signals heavily. Stale call (60+ days ago) → model discounts all transcript signals and drifts toward neutral.
+  - **What this suggests**: Call freshness is the on/off switch for the entire transcript model. The model learned on its own that old earnings calls stop being useful — no explicit rule was needed.
 
-- **Outperformance calls are driven by *what topics were raised*, not just how they sounded:**
-  - **`topic_regulatory_AML_share_ffill`** — when a large portion of the earnings call was spent discussing the AML (anti-money laundering) regulatory situation, the model is more likely to call **outperformance**. This is counterintuitive: the model appears to treat active, substantive engagement with the AML issue as a sign of management working toward resolution, rather than as a red flag. Calls where AML is barely mentioned provide little signal in either direction.
-  - **`framing_gap_ffill`** — when management speaks more positively and confidently on the call than their written regulatory filings suggest, the model leans toward **outperformance**. The verbal optimism relative to conservative filing language may signal confidence that hasn't yet been fully communicated in writing. When there is no gap — management sounds equally cautious both verbally and in filings — there is less signal for the upside.
+- **`transcript_analyst_qa_sentiment_mean_ffill`**
+  - **What it measures**: The overall tone of the analyst Q&A session on the earnings call — whether the back-and-forth between analysts and management was constructive or tense.
+  - **What we observe**: Positive Q&A → model calls outperformance. Tense or skeptical Q&A → model calls underperformance. The signal is symmetric and works with roughly equal strength in both directions.
+  - **What this suggests**: When experienced analysts engage positively, the model reads it as external validation. When they push back, it treats this as an early warning — analyst scrutiny tends to precede price weakness.
 
-- **Underperformance calls are driven by *how* management and analysts sounded, not just the topics raised:**
-  - **`exec_tone_ffill`** — this is the clearest downside signal in the transcript model. When executives sound cautious, muted, or guarded in their prepared remarks, the model is roughly three times more likely to use this as a downside signal than it uses positive executive tone as an upside signal. Put simply: confident executives do not add much predictive value, but cautious or defensive executives reliably flag risk.
-  - **`topic_credit_quality_sentiment_ffill`** — when the language used around credit quality sounds negative or deteriorating, the model flags **underperformance**. This is the sharpest negative trigger in the transcript model: not merely that credit quality was mentioned, but that it was discussed in a worrying way.
-  - **`transcript_analyst_qa_sentiment_mean_ffill`** — the overall tone of the analyst question-and-answer session drives both directions equally. When analysts and management interact positively and constructively, the model leans toward **outperformance**; when the Q&A is tense or negative, it leans toward **underperformance**. This is the most balanced two-way signal in the transcript model.
-
-- **Asymmetry summary**: the model predicts upside from *what is discussed* (AML engagement, framing divergence) and downside from *how management sounds* (executive tone, credit quality language). A call that raises difficult topics in a calm, confident tone is much less likely to trigger an underperformance call than one where tone itself signals distress.
+- **`framing_gap_ffill`**
+  - **What it measures**: Whether management sounds more optimistic in the earnings call than they do in their formal written filings. A positive gap means they are more upbeat verbally than on paper.
+  - **What we observe**: Positive gap → model leans outperformance. No gap or alignment between verbal and written tone → little signal in either direction. Primarily an upside signal; it does not reliably predict downside.
+  - **What this suggests**: When management speaks more confidently than their filings indicate, the model treats this as a leading indicator — conviction building before it has been formally communicated to the market.
 
 ---
 
 ## Model 3 — News
 
-### Mean |SHAP| across all OOS folds
-
-| Rank | Feature | Mean \|SHAP\| (+1) | Mean \|SHAP\| (−1) |
-|---|---|---|---|
-| 1 | `news_sent_mean_30d` | **0.163** | 0.103 |
-| 2 | `news_count_7d` | 0.064 | 0.098 |
-| 3 | `news_sent_mean_7d` | 0.061 | 0.061 |
-| 4 | `news_count_30d` | 0.052 | **0.114** |
-| 5 | `days_since_last_news` | 0.027 | 0.036 |
-
 ### Observations
 
-- **`news_sent_mean_30d`** — the average tone of news coverage over the past 30 days — is the strongest outperformance signal (0.163) and the second-strongest underperformance signal (0.103).
-  - **What drives the call**: When TD has been receiving consistently positive press coverage over the past month, the model is more likely to call **outperformance** — a durable positive narrative tends to carry forward into near-term price performance. When sentiment has been persistently negative, the primary call is **underperformance**. However, at very extreme levels of negativity, the model can occasionally flip toward **outperformance** — reflecting a pattern where the market over-reacts to bad news and the stock becomes poised for a recovery. A single good or bad headline does not trigger this; it requires a sustained shift in media tone.
+- **`news_sent_mean_30d`**
+  - **What it measures**: The average tone of all TD news coverage over the past 30 days — positive or negative on the whole. A single headline doesn't move this; it requires a sustained shift.
+  - **What we observe**: A month of broadly positive coverage → model calls outperformance. A month of broadly negative coverage → model calls underperformance. Positive sentiment is a stronger outperformance signal than negative sentiment is an underperformance signal — at extremes of negativity, the model can occasionally flip to outperformance as the stock becomes oversold.
+  - **What this suggests**: Sustained media narrative carries forward into price. Positive is more reliable than negative as a directional predictor; prolonged bad press sometimes overshoots and sets up a recovery rather than further decline.
 
-- **`news_count_30d`** — the total number of news articles in the past 30 days — is the strongest underperformance signal (0.114) and only a minor outperformance signal (0.052).
-  - **What drives the call**: A high volume of press coverage over the past month is a risk signal, *regardless of whether the articles are positive or negative*. News bursts tend to cluster around negative catalysts — regulatory developments, analyst downgrades, earnings concerns, sector stress — so more articles means more scrutiny and more uncertainty. When coverage is quiet, the model sees less risk and mildly favours **outperformance**.
-
-- **`news_count_7d`** — recent news volume in the past week — shows the same pattern but at shorter range.
-  - **What drives the call**: A spike in articles in the last seven days is an even more acute **underperformance** signal (0.098) than it is for outperformance (0.064). A recent news burst is an earlier warning of imminent risk than a slow 30-day build.
-
-- **`news_sent_mean_7d`** — short-term news tone — is equally balanced across both directions (0.061 / 0.061).
-  - **What drives the call**: A week of positive coverage nudges the model toward **outperformance**; a week of negative coverage nudges toward **underperformance**. Because it is so balanced, this is a two-way signal rather than a lopsided risk indicator.
-
-- **`days_since_last_news`** is consistently the weakest feature for both calls (0.027 / 0.036).
-  - **What drives the call**: When there has been no news for an unusually long time, the model loses confidence in the news signal entirely and reverts toward a neutral view. An information drought adds almost no directional value compared to actual content and volume.
+- **`news_count_30d`**
+  - **What it measures**: How many news articles about TD appeared in the last 30 days — regardless of whether they were positive or negative. Volume only, tone-blind.
+  - **What we observe**: High article volume → strong underperformance signal. Quiet coverage → mild outperformance lean. The downside signal is significantly stronger than the upside, making this primarily a risk alarm.
+  - **What this suggests**: News bursts cluster around bad events — regulatory developments, analyst downgrades, earnings concerns. Heavy media attention signals elevated scrutiny and uncertainty, not just activity. Quiet periods offer only mild reassurance.
 
 ---
 
 ## Per-Fold Deep Dive
 
-The model is evaluated on 13 consecutive 3-month (quarterly) test windows covering **March 2023 – April 2026**. Directional accuracy measures what share of active trading signals pointed in the right direction (random chance = 50%).
+The model's 13 evaluation quarters fall into three groups: **5 strong quarters** (65–70% directional accuracy), **2 significantly bad quarters** (below 40%, worse than a coin flip), and 6 moderate quarters near chance. Exact fold dates are in `model_choice.md`. Per-fold SHAP breakdowns for all three models are in `notebooks/xgb_ensemble_v2_performance.ipynb` (Section 10).
 
-| Fold | Period | Directional Accuracy | Assessment |
-|---|---|---|---|
-| 1 | Mar–Jun 2023 | 0.361 | Significantly below chance |
-| 2 | Jun–Sep 2023 | **0.694** | Strong |
-| 3 | Sep–Dec 2023 | 0.538 | Slightly above chance |
-| 4 | Dec 2023–Mar 2024 | **0.657** | Strong |
-| 5 | Mar–Jun 2024 | 0.572 | Moderate |
-| 6 | Jun–Sep 2024 | 0.594 | Moderate |
-| 7 | Sep–Dec 2024 | **0.686** | Strong |
-| 8 | Dec 2024–Mar 2025 | 0.388 | Worst fold — significantly below chance |
-| 9 | Mar–Jun 2025 | 0.459 | Below chance |
-| 10 | Jun–Sep 2025 | **0.663** | Strong |
-| 11 | Sep–Dec 2025 | 0.457 | Just below chance |
-| 12 | Dec 2025–Mar 2026 | **0.691** | Strong |
-| 13 | Mar–Apr 2026 | 0.600 | Moderate (small sample, 20 days) |
+### When the model performs well
 
-### Fold 1 — Mar–Jun 2023 (DA: 0.361)
+Strong quarters consistently share the same condition: **TD's stock is moving on its own story**, not dragged by sector-wide macro forces. In those environments:
 
-The model's weakest early quarter. This period followed the collapse of Silicon Valley Bank and Signature Bank in March 2023, which triggered a global wave of concern about regional bank and large bank stability. TD's stock moved in ways heavily driven by sector-wide fear rather than TD-specific fundamentals. The transcript model's signals from TD's own earnings call — including early AML-related language — were drowned out by macro contagion the model had never seen in training data. The model confidently called directions that the market reversed, producing below-chance accuracy.
+- The **price model** leans on how close TD is trading to its 52-week high (`td_dist_52w_high_v2`) — a proxy for whether the stock is in a healthy momentum regime. In quarters where price trends are particularly clean, recent absolute return (`td_return_20d`) takes over as the lead signal. Either way, the model is reading clear directional momentum in TD's own price.
 
-### Fold 2 — Jun–Sep 2023 (DA: 0.694)
+- The **transcript model** gates everything through `days_since_call` — it leads the transcript model in every strong fold without exception. What comes second shifted over time. In the 2023 strong folds (Folds 2 and 4), analyst Q&A sentiment (`transcript_analyst_qa_sentiment_mean_ffill`) and framing tone were the differentiating signals. From late 2024 onward (Folds 7, 10, 12), AML engagement (`topic_regulatory_AML_share_ffill`) moved to the front as TD's regulatory case took centre stage on earnings calls. The pattern — call freshness gates the signal, then a topic-specific feature takes over — is consistent; which topic dominates depends on what was in focus that quarter.
 
-The model's joint-best quarter. Banking stress fears receded and the market re-focused on company fundamentals. TD's stock began trading more on its own news flow and earnings call signals. The AML topic became a more established part of the investment narrative, meaning the transcript model's AML-related features had consistent and reliable signal. News volume and sentiment were also more interpretable — coverage was material but not driven by unpredictable external shocks. The model's three signal sources aligned well.
+- The **news model** leans on sustained 30-day sentiment (`news_sent_mean_30d`) for outperformance and article volume (`news_count_30d`) for underperformance. It is most reliable when coverage is driven by TD-specific events rather than macro noise.
 
-### Fold 3 — Sep–Dec 2023 (DA: 0.538)
+In short: the model performs well when fundamental signals — momentum, management tone, media narrative — are actually driving the stock. When one model has a clear signal and the others are quiet, the ensemble still works. It does not require all three to agree.
 
-Near-random accuracy. This quarter saw interest rate expectations shift significantly as the Bank of Canada and the Fed reached their terminal rates. TD, like other Canadian banks, was heavily influenced by rate-path uncertainty — a macro factor not well-captured by the model's price, transcript, or news features. The model produced slight but unreliable signal.
+### Fold 1 — Mar–Jun 2023 (DA: 0.361) — SVB banking crisis
 
-### Fold 4 — Dec 2023–Mar 2024 (DA: 0.657)
+**What the model was using**: the price model was relying on recent price momentum (`td_return_20d`) to call outperformance — but that momentum had already been reversed by the crisis. The transcript model's top signal was `topic_credit_quality_share_ffill`, which it was using correctly as a warning: high credit quality discussion was pushing it toward underperformance, not outperformance (the beeswarm confirms all SHAP values were negative for the +1 class in this fold).
 
-A strong quarter. The macro rate environment stabilised after the rate hiking cycle ended, and investor focus shifted to TD-specific fundamentals: AML resolution progress and earnings quality. The transcript and news models both had clean, consistent signals — management tone was interpretable, and news sentiment showed durable trends rather than noise spikes.
+**What happened**: Silicon Valley Bank collapsed in March 2023, triggering sector-wide panic. TD and XFN fell together, making the sector-relative return (the model's actual target) noisy and effectively random. The model's directional calls — in both directions — had no reliable anchor.
 
-### Folds 5–6 — Mar–Sep 2024 (DA: 0.572, 0.594)
+**Why the model missed it**: the model had never seen a systemic banking crisis in its two-year training window. The price model was calling outperformance based on momentum that evaporated overnight. The transcript model's credit quality warning signal was valid in isolation, but TD's sector-relative return during a panic is not driven by what management said on a call — it's driven by how fearful the market is. The two signals were answering different questions. Only the news model's article volume (`news_count_30d`) flagged elevated systemic risk, but was outvoted.
 
-Moderate, consistently above chance. These two quarters were characterised by an AI-driven broad market rally where growth stocks led. Canadian financials including TD outperformed modestly but lagged the broader market narrative. The model produced useful but not outstanding signal — TD-specific features had signal, but sector-relative moves were partially tied to macro themes the model does not directly capture.
+### Fold 8 — Dec 2024–Mar 2025 (DA: 0.388) — US tariff shock
 
-### Fold 7 — Sep–Dec 2024 (DA: 0.686)
+**What the model was using**: TD's stock had fallen well below its 52-week high (bearish price regime), executive tone on the call was cautious, analyst Q&A sentiment was negative, and news volume was elevated. All three models converged on underperformance — predicting −1 on 51 of 63 test days.
 
-One of the model's strongest quarters, coinciding with TD Bank's AML settlement announcement in October 2024 (a US$3.1 billion penalty). This was a high-information event that the model's transcript and news features were directly built to capture: AML topic share rose sharply, management tone shifted in a measurable way once the settlement path became clearer, and news volume spiked then normalised. The model's AML-related signals translated cleanly into correct directional calls in the period surrounding the announcement.
+**What happened**: US tariff escalation in early 2025. The model called underperformance consistently. But TD actually **outperformed XFN on 51 of 63 days** — the model got the sector-relative direction almost completely backwards. The confusion matrix shows 40 days where the model called −1 and the actual result was +1.
 
-### Fold 8 — Dec 2024–Mar 2025 (DA: 0.388)
-
-The worst quarter in the entire evaluation period, and the clearest example of model failure. This window covers the onset of US tariff policy escalation in early 2025, which produced sharp, correlated declines across Canadian bank stocks and the broader market. TD's stock movements during this period were driven almost entirely by macro and political news that is not captured anywhere in the model's feature set — not by price momentum signals, not by earnings call language, and not by TD-specific news flow. All three models made confident but wrong directional calls simultaneously. SHAP analysis for this fold shows unusually diffuse feature importance: no single feature dominated, indicating the model was uncertain and effectively guessing in a regime it had not encountered.
-
-### Fold 9 — Mar–Jun 2025 (DA: 0.459)
-
-Slightly below chance, as tariff-related volatility continued to weigh on global markets through the first half of 2025. The model partially recovered from fold 8's level of disruption but remained in noise territory. TD-specific signals (transcript and news) were present and consistent, but were insufficient to overcome macro-driven price moves.
-
-### Fold 10 — Jun–Sep 2025 (DA: 0.663)
-
-A strong recovery. As tariff fears eased and equity markets stabilised, TD-specific signals regained their predictive edge. Price momentum, sector-relative performance, and news sentiment all moved in interpretable, consistent ways. This fold demonstrates that the model's underperformance in folds 8–9 was regime-specific rather than structural.
-
-### Fold 11 — Sep–Dec 2025 (DA: 0.457)
-
-Near-random again. Renewed macro uncertainty, including a second wave of trade policy volatility, temporarily disrupted the model's signal clarity. The three models disagreed with each other — hard majority vote produced a weak signal because the individual models diverged.
-
-### Fold 12 — Dec 2025–Mar 2026 (DA: 0.691)
-
-The model's joint-strongest quarter, alongside fold 2. Conditions closely mirrored fold 2: macro stability had returned, TD was being evaluated on its own merits rather than sector-wide fear, and the transcript and news signals were clean and consistent. Both the news sentiment trend and the transcript tone features aligned strongly with actual price outcomes.
-
-### Fold 13 — Mar–Apr 2026 (DA: 0.600)
-
-A partial quarter (only 20 trading days available at evaluation time). Above chance, but the small sample size limits confidence. No major TD-specific events during this window; the model produced moderate, stable signals.
-
----
-
-### What the fold pattern tells us
-
-The model performs well — often at 65–70% directional accuracy — in **TD-specific, low-macro-noise environments**: quarters where earnings call signals are fresh, news sentiment has a clear trend, and price action is driven by fundamentals rather than external shocks. It struggles — sometimes falling below random — in **macro-dominated regimes** where the market is moved by forces entirely outside the feature set (banking system stress, tariff escalation, rate shock). This is not a flaw unique to this model; it is a structural limitation of any model that relies on company-specific signals.
+**Why the model missed it**: TD, as a large Canadian retail bank, was more defensively positioned than many other XFN constituents — insurance companies, asset managers, and smaller financial firms that were more directly exposed to tariff-driven market disruption. As the broader selloff hit the XFN basket harder than TD's deposit-heavy business, TD's sector-relative return turned positive. The model had no feature to capture differential tariff sensitivity within the XFN basket. All of its signals (bearish price regime, cautious tone, high news volume) were reading TD-specific weakness correctly — but XFN fell further, flipping the sector-relative outcome.
 
 ---
 

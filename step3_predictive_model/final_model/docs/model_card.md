@@ -36,55 +36,17 @@ target_excess_xfn_5d[t] = TD_fwd5[t] − XFN_fwd5[t]          # percentage-point
 
 ## Feature Definitions
 
-### Model 1 — Price (6 features)
+*Full feature definitions, formulas, and design rationale are documented in `feature_engineering.md`.*
 
-All return features are **trailing** (past *t−n* to *t*), not forward-looking.
+### Summary
 
+| Model | Feature count | Key inputs |
+|---|---|---|
+| Price | 6 | Trailing returns (5d, 20d), sector-relative returns, 52-week distance, 20-day volatility |
+| Transcript | 10 | Exec tone, analyst Q&A sentiment, framing gap, topic shares and sentiments (guidance, AML, credit quality), days since call |
+| News | 5 | Mean sentiment (7d, 30d), article count (7d, 30d), days since last news |
 
-| Feature               | Formula                                                                                |
-| --------------------- | -------------------------------------------------------------------------------------- |
-| `td_return_5d`        | `TD.adj_close[t] / TD.adj_close[t−5] − 1`                                              |
-| `td_return_20d`       | `TD.adj_close[t] / TD.adj_close[t−20] − 1`                                             |
-| `td_vs_xfn_5d`        | `td_return_5d[t] − xfn_return_5d[t]`                                                   |
-| `td_vs_xfn_20d`       | `td_return_20d[t] − xfn_return_20d[t]`                                                 |
-| `td_dist_52w_high_v2` | `(TD.adj_close[t] − max(TD.adj_close[t−251..t])) / TD.adj_close[t]`; always ≤ 0        |
-| `td_volatility_20d`   | `std(td_return_1d[t−19..t])`; where `td_return_1d = adj_close[t] / adj_close[t−1] − 1` |
-
-
-**Design rationale**: short and mid-term momentum (`5d`, `20d`), sector-relative performance at both horizons (`td_vs_xfn`), drawdown positioning (`td_dist_52w_high_v2`), and volatility regime (`td_volatility_20d`). Volatility scales the ±0.3% threshold in practice — high-vol regimes make non-neutral outcomes more frequent, helping the model calibrate its class boundaries.
-
-### Model 2 — Transcript + Report (10 features)
-
-
-| Feature                                      | Description                                                   |
-| -------------------------------------------- | ------------------------------------------------------------- |
-| `exec_tone_ffill`                            | Mean CEO + CFO prepared-remarks sentiment (forward-filled)    |
-| `transcript_analyst_qa_sentiment_mean_ffill` | Analyst Q&A tone                                              |
-| `framing_gap_ffill`                          | CEO verbal tone minus written filing tone (divergence signal) |
-| `topic_guidance_share_ffill`                 | Share of guidance discussion in the call                      |
-| `topic_guidance_sentiment_ffill`             | Tone of guidance discussion                                   |
-| `topic_regulatory_AML_share_ffill`           | Share of AML/regulatory discussion                            |
-| `topic_regulatory_AML_sentiment_ffill`       | Tone of AML/regulatory discussion                             |
-| `topic_credit_quality_share_ffill`           | Share of credit quality discussion                            |
-| `topic_credit_quality_sentiment_ffill`       | Tone of credit quality discussion                             |
-| `days_since_call`                            | Trading days elapsed since the last earnings call             |
-
-
-**Design rationale**: executive tone and analyst reception capture sentiment around each earnings call. Topics focus on the three areas most material to TD's risk profile: forward guidance, AML/regulatory exposure, and credit quality. `days_since_call` is the staleness signal — the tree learns its own decay thresholds. All features are used undecayed.
-
-### Model 3 — News (5 features)
-
-
-| Feature                | Description                                    |
-| ---------------------- | ---------------------------------------------- |
-| `news_sent_mean_7d`    | Mean LLM sentiment score over the last 7 days  |
-| `news_sent_mean_30d`   | Mean LLM sentiment score over the last 30 days |
-| `news_count_7d`        | Article count over the last 7 days             |
-| `news_count_30d`       | Article count over the last 30 days            |
-| `days_since_last_news` | Calendar days since the most recent article    |
-
-
-**Design rationale**: short (7d) and medium (30d) windows capture both immediate and sustained media narrative. Count features reflect news volume intensity. `days_since_last_news` captures information drought.
+Price and transcript windows are in **trading days**; news windows and `days_since_last_news` are in **calendar days**.
 
 ---
 
@@ -150,7 +112,7 @@ All metrics use stride-offset averaging (stride = 5) to avoid overlap from the 5
 
 | Metric                  | Definition                                                                                                |
 | ----------------------- | --------------------------------------------------------------------------------------------------------- |
-| `directional_call_rate` | Share of days where prediction ≠ 0                                                                        |
+| `directional_call_rate` | Share of days where prediction != 0                                                                        |
 | `directional_accuracy`  | Share of directional calls where `sign(prediction) == sign(actual excess return)`; random baseline = 0.50 |
 | `auc_pos`               | OVR AUC for +1 class using softmax P(+1); diagnostic only                                                 |
 | `auc_neg`               | OVR AUC for −1 class using softmax P(−1); diagnostic only                                                 |

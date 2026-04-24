@@ -61,9 +61,29 @@ Hard majority vote achieved 0.566 directional accuracy vs 0.536 for soft-prob av
 
 ## Training Window and Retraining Cadence
 
-- **2-year rolling window (504 days)**: captures at least 8 quarterly earnings cycles — necessary for the transcript model to learn call-to-call patterns. Shorter windows risk fitting a single regime.
+- **2-year rolling window (504 trading days)**: captures at least 8 quarterly earnings cycles — necessary for the transcript model to learn call-to-call patterns. Shorter windows risk fitting a single regime.
 - **Quarterly retraining**: aligns with the earnings cycle; ensures the most recent call is in the training set.
 - **5-day gap**: enforced between train end and test start to prevent any overlap between price-based features and the forward return target.
+
+### Fold Schedule (13 evaluation quarters)
+
+Each fold trains on 504 trading days (≈ 2 years) and tests on 63 trading days (≈ 1 quarter). The 5-trading-day leakage gap falls between train end and test start. Fold 13 is a partial quarter (20 days available at evaluation time).
+
+| Fold | Train start | Train end | Test start | Test end | Test days |
+|---|---|---|---|---|---|
+| 1 | 2021-02-25 | 2023-02-28 | 2023-03-08 | 2023-06-06 | 63 |
+| 2 | 2021-05-27 | 2023-05-30 | 2023-06-07 | 2023-09-06 | 63 |
+| 3 | 2021-08-26 | 2023-08-29 | 2023-09-07 | 2023-12-05 | 63 |
+| 4 | 2021-11-25 | 2023-11-28 | 2023-12-06 | 2024-03-07 | 63 |
+| 5 | 2022-02-28 | 2024-02-29 | 2024-03-08 | 2024-06-06 | 63 |
+| 6 | 2022-05-30 | 2024-05-30 | 2024-06-07 | 2024-09-06 | 63 |
+| 7 | 2022-08-29 | 2024-08-29 | 2024-09-09 | 2024-12-05 | 63 |
+| 8 | 2022-11-28 | 2024-11-28 | 2024-12-06 | 2025-03-10 | 63 |
+| 9 | 2023-03-01 | 2025-03-03 | 2025-03-11 | 2025-06-09 | 63 |
+| 10 | 2023-05-31 | 2025-06-02 | 2025-06-10 | 2025-09-09 | 63 |
+| 11 | 2023-08-30 | 2025-09-02 | 2025-09-10 | 2025-12-08 | 63 |
+| 12 | 2023-11-29 | 2025-12-01 | 2025-12-09 | 2026-03-11 | 63 |
+| 13 | 2024-03-01 | 2026-03-04 | 2026-03-12 | 2026-04-09 | 20 |
 
 ---
 
