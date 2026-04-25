@@ -22,7 +22,7 @@ from pathlib import Path
 import pandas as pd
 import requests
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from src.utils.config import MACRO_DIR, WINDOW_END, WINDOW_START  # noqa: E402
 from src.utils.manifest import record_artifact  # noqa: E402

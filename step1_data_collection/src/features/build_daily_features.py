@@ -33,12 +33,13 @@ import pandas as pd
 # ---------------------------------------------------------------------------
 # Paths
 # ---------------------------------------------------------------------------
-ROOT = Path(__file__).resolve().parents[3]
-RAW_PRICES = ROOT / "data/raw/prices"
-RAW_MACRO = ROOT / "data/raw/macro"
-NLP_PATH = ROOT / "data/processed/features/nlp_features.parquet"
-NEWS_PATH = ROOT / "data/processed/llm_annotations/news.jsonl"
-OUT_PATH = ROOT / "data/processed/features/model_features_daily.parquet"
+STEP1_DIR = Path(__file__).resolve().parents[2]
+ROOT = STEP1_DIR.parent
+RAW_PRICES = STEP1_DIR / "data/raw/prices"
+RAW_MACRO = STEP1_DIR / "data/raw/macro"
+NLP_PATH = ROOT / "step2_llm_analysis/data/features/nlp_features.parquet"
+NEWS_PATH = ROOT / "step2_llm_analysis/data/llm_annotations/news.jsonl"
+OUT_PATH = STEP1_DIR / "data/features/model_features_daily.parquet"
 
 # ---------------------------------------------------------------------------
 # Earnings call dates (point-in-time activation for NLP features)

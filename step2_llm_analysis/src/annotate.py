@@ -25,10 +25,13 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+_STEP2_DIR = Path(__file__).resolve().parents[1]
+_PROJECT_ROOT = _STEP2_DIR.parent
+sys.path.insert(0, str(_STEP2_DIR))      # for src.config
+sys.path.insert(0, str(_PROJECT_ROOT))   # for step1_data_collection imports
 
-from src.preprocess.llm_cache import append_records, cache_key, load_cache  # noqa: E402
-from src.utils.config import CHUNKS_DIR  # noqa: E402
+from step1_data_collection.src.preprocess.llm_cache import append_records, cache_key, load_cache  # noqa: E402
+from src.config import CHUNKS_DIR, LLM_ANNOTATIONS_DIR  # noqa: E402
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("annotate")

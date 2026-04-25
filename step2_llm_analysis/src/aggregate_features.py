@@ -45,9 +45,9 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from src.utils.config import FEATURES_DIR, LLM_ANNOTATIONS_DIR  # noqa: E402
+from src.config import FEATURES_DIR, LLM_ANNOTATIONS_DIR  # noqa: E402
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("aggregate_features")
