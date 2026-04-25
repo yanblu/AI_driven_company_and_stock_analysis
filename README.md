@@ -24,7 +24,7 @@ Collects daily prices (yfinance), macro series (BoC Valet), earnings call transc
 → `step1_data_collection/README.md`
 
 ### Step 2 — LLM / NLP Analysis
-Annotates 3,829 text passages with `gpt-4o-mini` (zero-shot) to extract per-passage sentiment scores and topic labels, aggregated to quarter-level features for Step 3. Includes FinBERT validation and the TD AML signal narrative.
+Annotates 3,884 text passages with `gpt-4o-mini` (zero-shot) to extract per-passage sentiment scores and topic labels, aggregated to quarter-level features for Step 3. Includes FinBERT validation and the TD AML signal narrative.
 
 → `step2_llm_analysis/README.md`
 

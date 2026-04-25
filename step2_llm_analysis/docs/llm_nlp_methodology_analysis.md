@@ -19,7 +19,7 @@ This step reads all TD Bank earnings call transcripts, news releases, and regula
 
 ### Why an LLM?
 
-Financial language is dense with jargon. An off-the-shelf model like FinBERT handles some of it, but misses a lot of management intent — a CEO saying "we are making necessary investments in our compliance infrastructure" reads as neutral to a word-counting model, but carries clear negative framing. `gpt-4o-mini` was used at `temperature=0` (fully deterministic) with a fixed prompt. The full run covered 3,829 passages and cost ~$0.70.
+Financial language is dense with jargon. An off-the-shelf model like FinBERT handles some of it, but misses a lot of management intent — a CEO saying "we are making necessary investments in our compliance infrastructure" reads as neutral to a word-counting model, but carries clear negative framing. `gpt-4o-mini` was used at `temperature=0` (fully deterministic) with a fixed prompt. The full run covered 3,884 passages and cost ~$0.70.
 
 ### How each passage is labelled
 
@@ -55,13 +55,13 @@ The model returns both a category (`positive`, `neutral`, or `negative`) and a n
 
 | Source | Passages | Documents |
 |---|---:|---|
-| Earnings call transcripts | 834 | 20 quarterly calls (FY2021Q2–FY2026Q1) |
+| Earnings call transcripts | 889 | 21 quarterly calls (FY2021Q1–FY2026Q1) |
 | TD Newsroom press releases | 1,019 | 688 releases |
 | Annual 40-F filings | 933 | 5 filings (FY2021–FY2025) |
 | Quarterly Reports to Shareholders | 1,043 | 16 reports (Q1–Q3, FY2021–FY2026Q1) |
-| **Total** | **3,829** | |
+| **Total** | **3,884** | |
 
-Analysis scope: FY2021Q2–FY2026Q1 (20 complete quarters). FY2026Q2 is excluded from charts and analysis (incomplete quarter — news only); records are kept in the feature file for Step 3.
+Analysis scope: FY2021Q1–FY2026Q1 (21 complete quarters; 3,857 passages). FY2026Q2 is excluded from charts and analysis (incomplete quarter — news only, 27 passages); records are retained in the feature file for Step 3.
 
 ---
 

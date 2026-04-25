@@ -37,7 +37,7 @@ step2_llm_analysis/
 - **24 topic columns** — for each of 12 business topics: share of passages tagged, and mean sentiment on those passages
 - **1 diversity column** — topic entropy (how concentrated vs. broad the quarter's discussion was)
 
-**3,829 passages annotated** across transcripts, news releases, 40-F filings, and quarterly reports. Analysis scope: FY2021Q2–FY2026Q1 (20 complete quarters).
+**3,884 passages annotated** across transcripts, news releases, 40-F filings, and quarterly reports. Analysis scope: FY2021Q1–FY2026Q1 (21 complete quarters; 3,857 passages in analysis — FY2026Q2 excluded as incomplete).
 
 ---
 

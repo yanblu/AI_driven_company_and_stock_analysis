@@ -22,7 +22,7 @@ This document satisfies the guideline requirement to "clearly document your data
 | BoC Valet (macro) | 7 series | policy rate, overnight avg, 2y/5y/10y GoC, USD/CAD, CPI all-items (monthly) |
 | TD IR reports (Form 40-F) | 5 annual 40-F PDFs | FY2021–FY2025, fiscal year-ends Oct 31 |
 | TD IR reports (Report to Shareholders) | 16 quarterly PDFs | FY2021–FY2025 × Q1/Q2/Q3 + FY2026Q1 (Q4 is the 40-F) |
-| TD IR transcripts | 20 quarterly earnings-call transcripts | 4/year × FY21–FY25 + FY26Q1 — full 5-year coverage |
+| TD IR transcripts | 21 quarterly earnings-call transcripts | 4/year × FY21–FY25 + FY26Q1 — full 5-year coverage |
 | TD Newsroom (stories.td.com) | 688 press releases | 2021-01-05 → 2026-04-16 (~120–140 / year) |
 
 See the live provenance log in [`manifest.csv`](../data/manifest.csv) for every file.
@@ -81,22 +81,21 @@ Step 2 uses a zero-shot LLM for topic and sentiment analysis. All preprocessing 
 Raw PDF / HTML / JSON
         │
         ▼
-  1. Text extraction          pdfplumber (PDFs) · BeautifulSoup (HTML) · json.loads (news)
+  1. Text extraction      pdfplumber (PDFs) · BeautifulSoup (HTML) · json.loads (news)
         │
         ▼
-  2. Structural parsing       Speaker tagging + Q&A split  ← transcripts only, before cleaning
+  2. Structural parsing   Speaker tagging + prepared_remarks/Q&A split  ← transcripts only
         │
         ▼
-  3. Text cleaning            Boilerplate strip · whitespace normalisation
+  3. Text cleaning        Boilerplate strip · whitespace normalisation  ← all sources
         │
         ▼
-  4. Section tagging          Regex split on known headings  ← reports only
+  4. Text chunking        Split at paragraph/sentence boundaries into ~1,800-token windows
+                          and attach metadata (date, quarter, speaker).
+                          Content annotation happens later in Step 2 via the LLM.
         │
         ▼
-  5. Semantic chunking        1 800-token target, section → paragraph → sentence boundaries
-        │
-        ▼
-  JSONL chunks with metadata
+  JSONL chunks with metadata  → consumed by Step 2 (LLM annotation)
 ```
 
 Implementation files: [`src/preprocess/cleaning.py`](../src/preprocess/cleaning.py) · [`src/preprocess/chunking.py`](../src/preprocess/chunking.py) · [`src/preprocess/build_chunks.py`](../src/preprocess/build_chunks.py)
@@ -166,67 +165,85 @@ Applied to all sources, **per speaker turn** for transcripts (after structural p
 
 ---
 
-### Step 4 — Section tagging (reports only)
+### Step 4 — Text chunking
 
-The 40-F and Report to Shareholders are long, multi-topic documents. Section tagging breaks them into logical units so that each chunk stays topically coherent.
+**Code:** `chunking.py → chunk_text()` and `make_chunk_records()`.
 
-Regex patterns match headings such as:
+Splits text into windows small enough to send to an LLM, respecting paragraph then sentence boundaries. Each window gets metadata attached — content annotation happens in Step 2.
 
-- `Management's Discussion and Analysis`
-- `Business Segment Results`
-- `Canadian Personal Banking`, `U.S. Retail`, `Wholesale Banking`
-- `Risk Factors` / `Risk Management`
-- `Liquidity and Capital`
-- `Critical Accounting Estimates`
-
-When no heading matches (TD's PDF renderer occasionally runs text together), the entire document becomes a single `body` section and the chunker handles subdivision by paragraph/sentence.
-
----
-
-### Step 5 — Semantic chunking
+`chunk_text()` packs paragraphs greedily up to the token target, falls back to sentence splitting for oversized paragraphs, and merges any tiny trailing chunk into the preceding one.
 
 | Parameter | Value |
 |---|---|
 | Tokeniser | `tiktoken` — `cl100k_base` (GPT-4 / Claude compatible) |
 | Target chunk size | 1,800 tokens |
 | Hard maximum | 4,000 tokens |
-| Split priority | section boundary → paragraph break → sentence break |
-| Minimum merge threshold | Chunks under ~200 tokens are merged into the preceding chunk where possible |
+| Split priority | paragraph break (`\n\n`) → sentence break (`.!?` + capital letter) |
+| Minimum merge threshold | Chunks under 200 tokens merged into preceding chunk |
 
 Each chunk record carries:
 
 ```
-chunk_id              globally unique (doc_id + section + chunk index)
-source_type           news | reports_40f | reports_quarterly | transcripts
-doc_id                file stem (reports/transcripts) or article slug (news)
-date                  ISO-8601 calendar date of the document
-fiscal_quarter        TD fiscal quarter, e.g. FY2024Q2  (Oct 31 FY-end convention)
-td_fiscal_quarter_hint  explicit FY+Q label from URL/filename (reports & transcripts)
-section               section name from tag_sections, or speaker-section for transcripts
-speaker               {name, role, affiliation}  — null for non-transcript sources
-text                  cleaned chunk text
-token_count           tiktoken count of `text`
-url                   source URL
-...source-specific    e.g. headline (news), report_type / td_fiscal_year (reports)
+chunk_id      globally unique (source_type:doc_id:section:index)
+source_type   news | reports_40f | reports_quarterly | transcripts
+doc_id        file stem (reports/transcripts) or article slug (news)
+date          ISO-8601 calendar date of the document
+fiscal_quarter  TD fiscal quarter, e.g. FY2024Q2  (Oct 31 FY-end convention)
+section       "body" for reports; "prepared_remarks"/"qa" for transcripts
+speaker       {name, role, affiliation}  — null for non-transcript sources
+text          cleaned chunk text
+token_count   tiktoken count of text
+url           source URL
+```
+
+**Real examples from `data/chunks/transcripts.jsonl`:**
+
+```
+chunk_id : transcripts:2021-02-25_...:prepared_remarks:013
+quarter  : FY2021Q1
+section  : prepared_remarks          ← CEO opening, before Q&A
+speaker  : {name: "Bharat Masrani", role: "ceo"}
+tokens   : 282
+text     : "Thank you, Gillian. And thank you, everyone, for joining us today.
+            It's been almost a year since the COVID-19 pandemic transformed
+            our lives. As we continue to witness its uneven impacts..."
+
+chunk_id : transcripts:2021-02-25_...:qa:001
+quarter  : FY2021Q1
+section  : qa                        ← analyst question in Q&A session
+speaker  : {name: "Paul Holden", role: "analyst", affiliation: "CIBC World Markets"}
+tokens   : 536
+text     : "Thanks. Good morning. I have a couple of questions for you related
+            to expenses. You highlighted the branch optimization in the quarter
+            and the costs you're going to run through this quarter and next..."
+
+chunk_id : transcripts:2021-02-25_...:qa:005
+quarter  : FY2021Q1
+section  : qa                        ← CFO response in Q&A session
+speaker  : {name: "Riaz Ahmed", role: "cfo"}
+tokens   : 724
+text     : "Thank you, Meny. Look, I think there are three things that you
+            should look at when looking at PTPP and operating leverage. First
+            is the currency impact..."
 ```
 
 Output: one JSONL per source type in `data/chunks/`:
 
-| File | Documents | Chunks | Tokens | Avg tokens/chunk |
-|---|---:|---:|---:|---:|
-| `reports_40f.jsonl` | 5 | 1,023 | 1,381,463 | 1,350 |
-| `reports_quarterly.jsonl` | 16 | 1,086 | 1,479,278 | 1,363 |
-| `news.jsonl` | 688 | 1,019 | 1,176,263 | 1,154 |
-| `transcripts.jsonl` | 20 | 1,363 | 249,887 | 183 |
-| **Total** | **728** | **4,491** | **~4.29M** | |
+| File | Chunks | Tokens | Avg tokens/chunk |
+|---|---:|---:|---:|
+| `reports_40f.jsonl` | 1,023 | 1,381,463 | 1,350 |
+| `reports_quarterly.jsonl` | 1,151 | 1,567,378 | 1,361 |
+| `news.jsonl` | 1,019 | 1,176,263 | 1,154 |
+| `transcripts.jsonl` | 1,390 | 258,171 | 185 |
+| **Total** | **4,583** | **~4.38M** | |
 
-> **Note on transcript chunk size**: the low average (183 tokens) reflects the per-turn chunking — each speaker utterance is its own chunk. Short "name-listing" stubs from the participant header (~507 chunks, < 50 tokens each) will be filtered out at Step 2 with `token_count >= 50` before sending to the LLM.
+> **Note on transcript chunk size**: the low average (185 tokens) reflects per-turn chunking — each speaker utterance is its own chunk. Short participant-header stubs (< 50 tokens) are filtered at Step 2 before sending to the LLM.
 
 ## Token budget for Step 2
 
 Rough input-only cost for a full LLM pass across the ~4.3M-token corpus:
 
-| Model tier | Rate | Full corpus (~4.29M) |
+| Model tier | Rate | Full corpus (~4.38M) |
 |---|---|---|
 | Haiku / gpt-4o-mini | ~$0.25/M | ~$1.10 |
 | Sonnet / gpt-4o | ~$3/M | ~$13 |
