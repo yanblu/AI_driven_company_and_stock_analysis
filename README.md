@@ -1,55 +1,53 @@
-# AI-Driven Analysis of TD Bank (Canadian Market)
+# AI-Driven Company & Stock Analysis — TD Bank
 
-End-to-end AI/analytics MVP for Toronto-Dominion Bank (TSX: `TD.TO`, CAD), covering:
+End-to-end pipeline for Toronto-Dominion Bank (`TD.TO`, CAD): collects public data, extracts language signals with an LLM, and trains a predictive model for short-term relative stock performance.
 
-1. Data collection from public sources (this repo)
-2. LLM-based topic + sentiment analysis of textual data
-3. Predictive modeling of TD.TO daily returns
-4. Storytelling visualizations for a mixed-audience presentation
+---
 
-## Scope (MVP)
-
-- **Subject**: Toronto-Dominion Bank, Canadian market, CAD pricing only
-- **Window**: uniform 5-year lookback (2021-01-01 → present) across all data types
-- **Step 2 approach**: zero-shot LLM for topic + sentiment (optional FinBERT sanity-check baseline)
-
-## Repository layout
+## Project layout
 
 ```
-data/
-  raw/          # immutable pulls, organized by source
-    prices/          # yfinance OHLCV parquets
-    macro/           # BoC Valet, StatCan, FRED
-    filings/         # SEC EDGAR 40-F and 6-K
-    transcripts/     # TD IR quarterly call transcripts (PDF + parsed)
-    news/            # TD newsroom press releases + dedup info
-  processed/
-    chunks/          # LLM-ready text chunks with metadata (JSONL per source)
-    llm_annotations/ # cached LLM outputs keyed by content hash
-    features/        # joined feature tables for Step 3
-  manifest.csv       # provenance for every artifact
-
-src/
-  collectors/   # one module per data source
-  preprocess/   # cleaning, section/speaker tagging, chunking
-  utils/        # config, manifest bookkeeping
-
-notebooks/     # exploratory analysis (Steps 2-4)
+step1_data_collection/    ← raw data collection, text preprocessing, daily feature table
+step2_llm_analysis/       ← zero-shot LLM annotation, sentiment & topic signals, AML narrative
+step3_predictive_model/   ← XGBoost ensemble, walk-forward validation, SHAP analysis
 ```
 
-## Quick start
+Each step folder is self-contained: code, data, and docs all live inside it.
+
+---
+
+## Steps
+
+### Step 1 — Data Collection
+Collects daily prices (yfinance), macro series (BoC Valet), earnings call transcripts, regulatory filings (Form 40-F), and press releases (TD Newsroom). Preprocesses text into LLM-ready chunks and builds the merged daily feature table.
+
+→ `step1_data_collection/README.md`
+
+### Step 2 — LLM / NLP Analysis
+Annotates 3,829 text passages with `gpt-4o-mini` (zero-shot) to extract per-passage sentiment scores and topic labels, aggregated to quarter-level features for Step 3. Includes FinBERT validation and the TD AML signal narrative.
+
+→ `step2_llm_analysis/README.md`
+
+### Step 3 — Predictive Modelling
+Three XGBoost models (price, transcript, news) combined via hard majority vote to predict whether TD will outperform, underperform, or match XFN over the next 5 trading days. Validated across 13 walk-forward folds.
+
+| Model | Directional Accuracy |
+|---|---|
+| Price | 0.530 |
+| Transcript | 0.550 |
+| News | 0.536 |
+| **Hard Majority Vote** | **0.566** |
+
+→ `step3_predictive_model/README.md`
+
+---
+
+## Setup
 
 ```bash
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-
-python -m src.collectors.prices
-python -m src.collectors.macro
-python -m src.collectors.edgar
-python -m src.collectors.transcripts
-python -m src.collectors.newsroom
-python -m src.preprocess.build_chunks
 ```
 
-See [`data/README_data.md`](data/README_data.md) for detailed source documentation.
+A `.env` file at the project root is required for Step 2 (OpenAI API key). Data collection in Step 1 has no API key requirements — all sources are public.

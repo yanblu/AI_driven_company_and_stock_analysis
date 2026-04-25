@@ -38,8 +38,8 @@ if str(ROOT) not in sys.path:
 
 from src.models.walk_forward_config import E10_FOLDS, STRIDE_EVAL
 
-FEAT_PATH = ROOT / "data/processed/features/model_features_daily.parquet"
-PRICES_PATH = ROOT / "data/raw/prices"
+FEAT_PATH = ROOT / "step1_data_collection/data/features/model_features_daily.parquet"
+PRICES_PATH = ROOT / "step1_data_collection/data/raw/prices"
 OUT_DIR = ROOT / "step3_predictive_model/model_experiments/redesign_single_stock/data"
 
 ROUND2_PREFIX = "round2"
