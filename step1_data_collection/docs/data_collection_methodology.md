@@ -2,6 +2,8 @@
 
 This document satisfies the guideline requirement to "clearly document your data sources and any preprocessing steps." It is updated as collectors run; the companion [`manifest.csv`](../data/manifest.csv) carries per-artifact provenance (URL, retrieval date, SHA-256, record count).
 
+> **Note:** This document covers all data collected. Not all of it feeds the predictive model. Macro series, peer bank prices, and filing PDFs are collected for completeness and context; the final model inputs are a subset defined in `step3_predictive_model/final_model/docs/feature_engineering.md`.
+
 ## Scope
 
 - **Subject**: Toronto-Dominion Bank (TSX: `TD.TO`, CAD)

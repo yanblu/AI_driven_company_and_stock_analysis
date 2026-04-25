@@ -23,6 +23,7 @@ A three-model ensemble for predicting the 5-day excess return of TD Bank (TD.TO)
 | ------------------ | --------------------------------------------------------------------------------------- |
 | Target             | `target_excess_xfn_5d` — TD 5-day return minus XFN 5-day return                        |
 | Classes            | −1: TD underperforms XFN by > 0.3%, 0: within ±0.3%, +1: TD outperforms XFN by > 0.3% |
+| Full data span     | 2021-02-25 → 2026-04-09 (all training + test periods combined; 13 folds)                |
 | Algorithm          | XGBoost, 3-class                                                                        |
 | Ensemble           | Hard majority vote (ties → neutral 0)                                                   |
 | Training window    | Rolling 504 trading days (~2 years)                                                     |
@@ -90,7 +91,7 @@ At ±0.3%, roughly 30–35% of days fall in the neutral class — enough to filt
 
 Each sub-model is trained on one information source only. Three reasons:
 
-1. **Information staleness differs**: transcript features are forward-filled to daily frequency, but the underlying information only changes at each earnings call — the same value repeats for up to 63 days. Mixing truly daily signals (price, news) with stale repeated signals (transcript) in a single model can produce misleading feature interactions.
+1. **Information staleness differs**: transcript features forward-fill from the earnings call date, not the fiscal quarter start. The same values repeat for 56–82 trading days between calls (exact schedule in `feature_engineering.md`). Mixing this near-static signal with truly daily signals (price, news) in a single model can produce misleading feature interactions.
 2. **Interpretability**: each model's predictions and SHAP values can be inspected independently. If performance degrades, the failing signal source can be identified and fixed in isolation.
 3. **Extensibility**: adding a new data source means adding a new sub-model without touching the existing three.
 

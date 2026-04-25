@@ -28,7 +28,33 @@ All return features are **trailing** (past to present, not forward-looking). All
 
 ## Model 2 — Transcript (10 features)
 
-All transcript features are **forward-filled** from the most recent earnings call. `days_since_call` is in **trading days**.
+All transcript features are **forward-filled from the earnings call date**. Each feature value updates on the exact trading day the call occurs and holds constant until the next call. `days_since_call` (in trading days) captures this staleness — the model learns how much weight to give transcript features depending on how old the call is.
+
+| Quarter  | Call date  | Features active until | Trading days active |
+|----------|------------|-----------------------|---------------------|
+| FY2021Q1 | 2021-02-25 | 2021-05-26            | 63                  |
+| FY2021Q2 | 2021-05-27 | 2021-08-25            | 63                  |
+| FY2021Q3 | 2021-08-26 | 2021-12-01            | 68                  |
+| FY2021Q4 | 2021-12-02 | 2022-03-02            | 61                  |
+| FY2022Q1 | 2022-03-03 | 2022-05-25            | 58                  |
+| FY2022Q2 | 2022-05-26 | 2022-08-24            | 63                  |
+| FY2022Q3 | 2022-08-25 | 2022-11-30            | 68                  |
+| FY2022Q4 | 2022-12-01 | 2023-03-01            | 61                  |
+| FY2023Q1 | 2023-03-02 | 2023-05-25            | 59                  |
+| FY2023Q2 | 2023-05-26 | 2023-08-23            | 62                  |
+| FY2023Q3 | 2023-08-24 | 2023-11-29            | 68                  |
+| FY2023Q4 | 2023-11-30 | 2024-02-28            | 61                  |
+| FY2024Q1 | 2024-02-29 | 2024-05-22            | 58                  |
+| FY2024Q2 | 2024-05-23 | 2024-08-21            | 63                  |
+| FY2024Q3 | 2024-08-22 | 2024-12-04            | 73                  |
+| FY2024Q4 | 2024-12-05 | 2025-02-26            | 56                  |
+| FY2025Q1 | 2025-02-27 | 2025-05-21            | 58                  |
+| FY2025Q2 | 2025-05-22 | 2025-08-27            | 68                  |
+| FY2025Q3 | 2025-08-28 | 2025-12-03            | 68                  |
+| FY2025Q4 | 2025-12-04 | 2026-04-02            | 82                  |
+| FY2026Q1 | 2026-04-03 | 2026-04-09 *(end)*    | 4                   |
+
+*Source: `step1_data_collection/data/raw/transcripts/index.parquet`. "Features active until" = the trading day before the next call (or last day of data for FY2026Q1). FY2025Q4 runs 82 days because TD's Q1 2026 call fell in early April.*
 
 | Feature                                      | Description                                                                                    |
 | -------------------------------------------- | ---------------------------------------------------------------------------------------------- |
