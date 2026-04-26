@@ -23,20 +23,37 @@ Financial language is dense with jargon. An off-the-shelf model like FinBERT han
 
 ### How each passage is labelled
 
-Each passage is sent to the model with this request:
+Each API call is a two-message conversation: a fixed system prompt followed by a per-passage user message.
+
+**System prompt** (identical for every call):
+
+```
+You are a financial analyst specialising in Canadian banks. Analyse the following
+passage from a TD Bank document and respond with a JSON object. Be concise and
+precise. Respond ONLY with the JSON — no prose, no markdown fences.
+```
+
+**User message** (filled in per passage; `Speaker:` line is omitted for non-transcript sources):
 
 ```
 Document type: {source_type}  Quarter: {fiscal_quarter}  Section: {section}
 Speaker: {speaker_name} ({speaker_role})
 
-Passage: """ {text} """
+Passage:
+"""
+{text}
+"""
 
 Respond with exactly this JSON and nothing else:
-{ "sentiment": "positive"|"neutral"|"negative",
+{
+  "sentiment": "positive" or "neutral" or "negative",
   "sentiment_score": <float -1.0 to 1.0>,
-  "topics": [<1-3 labels>],
-  "key_quote": "<one sentence max 20 words>" }
+  "topics": [<1-3 labels from: NIM, credit_quality, capital, US_retail, Canadian_personal, wealth_wholesale, regulatory_AML, macro_outlook, cost_efficiency, guidance, M_and_A, other>],
+  "key_quote": "<one sentence max 20 words capturing the core message>"
+}
 ```
+
+`temperature=0` and `max_tokens=200` are set on every call. `PROMPT_VERSION = "v1"` is embedded in the cache key so any future prompt change triggers a clean re-annotation pass.
 
 Three filters are applied before annotation to remove noise:
 1. Passages under 50 tokens (single-line stubs, headers)
