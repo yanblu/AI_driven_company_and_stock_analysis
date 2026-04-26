@@ -126,13 +126,13 @@ Analysis scope: FY2021Q1–FY2026Q1 (21 complete quarters; 3,857 passages). FY20
 
 ## What the signals show: the TD AML cycle
 
-> All figures below are from `data/features/nlp_features.parquet`, validated in `notebooks/02_annotation.ipynb`.
+> All figures below are from `data/features/nlp_features.parquet`, validated in `notebooks/02_annotation.ipynb`. Phase 1 and Phase 3 topic signals use all annotated source types: earnings call transcripts, news releases, 40-F filings, and quarterly reports. Phase 2's framing gap compares CEO prepared-remarks tone from transcripts against written filing/report tone.
 
 TD's AML enforcement cycle left a clear, measurable trail in the language signals — rising before the public announcement and recovering after resolution.
 
 ### Phase 1 — Build-up (FY2023Q2 → FY2024Q3)
 
-The share of content discussing regulatory and AML matters climbed steadily while the tone on those passages fell toward neutral. This happened across eight consecutive quarters before the consent order was announced.
+Across all annotated source types, the share of content discussing regulatory and AML matters climbed steadily while the tone on those passages fell toward neutral. This happened across eight consecutive quarters before the consent order was announced.
 
 | Quarter | AML share | AML sentiment |
 |---|---:|---:|
@@ -147,18 +147,18 @@ AML share roughly doubled from the FY2022 baseline. AML sentiment fell 86% over 
 
 ### Phase 2 — Peak enforcement (FY2024Q4)
 
-CEO prepared-remarks sentiment dropped to 0.000 — the only zero in the 21-quarter dataset — and for the first time, fell below the tone of the mandatory annual filing. The framing gap (CEO prepared remarks minus filing tone) turned negative: management was less optimistic than their own required disclosures.
+CEO prepared-remarks sentiment from the earnings call transcript dropped to 0.000 — the only zero in the 21-quarter dataset — and for the first time, fell below the tone of the mandatory annual filing. The framing gap (CEO transcript tone minus filing/report tone) turned negative: management was less optimistic on the call than in its required disclosures.
 
 | Quarter | CEO prep | Filing | Gap |
 |---|---:|---:|---:|
 | FY2024Q3 | 0.600 | 0.029 | +0.571 |
 | FY2024Q4 | **0.000** | 0.137 | **−0.137** |
 
-The FY2024Q4 filing sentiment (0.137) reflects the full fiscal year's narrative — averaged across earlier quarters that were not under enforcement — so it understates the Q4 stress. Despite that, CEO tone still fell below it. AML topic share simultaneously hit its dataset peak at 30% — nearly one in three annotated passages that quarter covered regulatory or compliance matters.
+The FY2024Q4 filing sentiment (0.137) reflects the full fiscal year's narrative — averaged across earlier quarters that were not under enforcement — so it understates the Q4 stress. Despite that, CEO transcript tone still fell below it. All-source AML topic share simultaneously hit its dataset peak at 30% — nearly one in three annotated passages that quarter covered regulatory or compliance matters.
 
 ### Phase 3 — Recovery (FY2025Q1 → FY2026Q1)
 
-Two signals marked the recovery: the framing gap returned positive, and guidance discussion surged to a five-year high.
+Two signals marked the recovery: the transcript-vs-filing framing gap returned positive, and all-source guidance discussion surged to a five-year high.
 
 **Framing gap** — CEO sentiment back above filing tone from FY2025Q1 onward, recovering toward the pre-crisis norm:
 
@@ -168,7 +168,7 @@ Two signals marked the recovery: the framing gap returned positive, and guidance
 | FY2025Q3 | 0.700 | 0.269 | +0.456 |
 | FY2026Q1 | **0.800** | **0.306** | **+0.494** |
 
-**Guidance share** — how often management made forward-looking commitments:
+**Guidance share** — how often annotated passages across transcripts, news, filings, and quarterly reports discussed forward-looking commitments:
 
 | Quarter | Guidance share | Guidance sentiment |
 |---|---:|---:|

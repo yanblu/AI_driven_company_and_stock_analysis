@@ -187,10 +187,10 @@ Full feature definitions and formulas are in `feature_engineering.md`.
 | Model      | Feature count | Key inputs                                                                                              |
 | ---------- | ------------- | ------------------------------------------------------------------------------------------------------- |
 | Price      | 6             | Trailing returns (5d, 20d), sector-relative returns (5d, 20d), 52-week high distance, 20-day volatility |
-| Transcript | 10            | Exec tone, analyst Q&A sentiment, framing gap, topic shares and sentiments (guidance, AML, credit quality), days since call |
+| Transcript | 10            | Exec tone, analyst Q&A sentiment, transcript-vs-filing framing gap, all-source topic shares and sentiments (guidance, AML, credit quality), days since call |
 | News       | 5             | Mean sentiment (7d, 30d), article count (7d, 30d), days since last news                                 |
 
-Price and transcript windows are in **trading days**; news windows are in **calendar days**.
+Price and transcript/NLP windows are in **trading days**; news windows are in **calendar days**. Topic share and sentiment features are quarter-level NLP aggregates across transcripts, news, filings, and reports, then forward-filled from the earnings call date.
 
 ---
 

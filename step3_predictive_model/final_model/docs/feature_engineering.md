@@ -60,16 +60,16 @@ All transcript features are **forward-filled from the earnings call date**. Each
 | -------------------------------------------- | ---------------------------------------------------------------------------------------------- |
 | `exec_tone_ffill`                            | Mean CEO + CFO prepared-remarks sentiment                                                      |
 | `transcript_analyst_qa_sentiment_mean_ffill` | Average sentiment across all analyst questions and management responses in the Q&A session     |
-| `framing_gap_ffill`                          | CEO verbal tone minus written filing tone — whether management sounds more upbeat on the call than on paper |
-| `topic_guidance_share_ffill`                 | Share of the earnings call spent discussing forward guidance                                   |
-| `topic_guidance_sentiment_ffill`             | Tone of guidance discussion                                                                    |
-| `topic_regulatory_AML_share_ffill`           | Share of the call spent discussing AML and regulatory matters                                  |
-| `topic_regulatory_AML_sentiment_ffill`       | Tone of AML/regulatory discussion                                                              |
-| `topic_credit_quality_share_ffill`           | Share of the call spent discussing credit quality                                              |
-| `topic_credit_quality_sentiment_ffill`       | Tone of credit quality discussion                                                              |
+| `framing_gap_ffill`                          | CEO prepared-remarks tone from the earnings call minus written filing/report tone — whether management sounds more upbeat on the call than on paper |
+| `topic_guidance_share_ffill`                 | Share of annotated quarterly passages across transcripts, news, filings, and reports discussing forward guidance |
+| `topic_guidance_sentiment_ffill`             | Tone of all-source guidance discussion                                                         |
+| `topic_regulatory_AML_share_ffill`           | Share of annotated quarterly passages across transcripts, news, filings, and reports discussing AML and regulatory matters |
+| `topic_regulatory_AML_sentiment_ffill`       | Tone of all-source AML/regulatory discussion                                                   |
+| `topic_credit_quality_share_ffill`           | Share of annotated quarterly passages across transcripts, news, filings, and reports discussing credit quality |
+| `topic_credit_quality_sentiment_ffill`       | Tone of all-source credit quality discussion                                                    |
 | `days_since_call`                            | Trading days elapsed since the most recent earnings call                                       |
 
-Topics cover the three areas most relevant to TD over the evaluation period: forward guidance, AML/regulatory exposure, and credit quality. `days_since_call` acts as the staleness signal — the model learns from data how much weight to give transcript features depending on how old the call is.
+Topic features cover the three areas most relevant to TD over the evaluation period: forward guidance, AML/regulatory exposure, and credit quality. They are quarter-level, all-source NLP aggregates that are activated from the earnings call date and forward-filled to daily rows. `days_since_call` acts as the staleness signal — the model learns from data how much weight to give the quarterly NLP snapshot depending on how old the call is.
 
 ---
 

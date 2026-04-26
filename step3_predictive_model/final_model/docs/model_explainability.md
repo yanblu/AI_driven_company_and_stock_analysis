@@ -65,13 +65,13 @@ The model's 13 evaluation quarters fall into three groups: **5 strong quarters**
 
 ### When the model performs well
 
-Strong quarters share the same condition: TD's price, management tone, and news are all being driven by TD-specific factors rather than sector-wide forces.
+Strong quarters share the same condition: TD-specific information explains variation in TD's return relative to XFN (the model target), rather than sector-wide forces moving all banks together.
 
-- The **price model** leads with 52-week high proximity (`td_dist_52w_high_v2`) in most strong quarters. When price trends are particularly clean, recent return (`td_return_20d`) takes over. Either way, there is a clear directional read on TD's own momentum.
+- The **price model** leads with 52-week high proximity (`td_dist_52w_high_v2`) in most strong quarters. When price trends are clean and volatility is contained (`td_volatility_20d` not flashing risk), recent return (`td_return_20d`) can take over. In these clearer regimes, vote conflicts are less frequent and the ensemble is more likely to produce a clean directional majority instead of neutral fallback.
 - The **transcript model** is always gated by `days_since_call`. Which secondary signal matters most shifts by period: in the 2023 strong quarters, analyst Q&A tone was the differentiator; from late 2024 onward, AML engagement features moved to the front as the regulatory story dominated earnings calls.
 - The **news model** relies on 30-day sentiment (`news_sent_mean_30d`) for outperformance calls and article volume (`news_count_30d`) for underperformance. It works best when coverage is about TD specifically.
 
-The model does not require all three to agree — one model carrying a clear signal while the others are quiet is enough.
+The ensemble does not need unanimous agreement, but it does need a directional majority (2 of 3 votes) to avoid falling back to neutral.
 
 ### Fold 1 — Mar–Jun 2023 (DA: 0.361) — SVB banking crisis
 
