@@ -1,0 +1,49 @@
+{
+  "label": "rf_option_c",
+  "cutoff": "2024-08-22",
+  "train_rows": 877,
+  "test_rows": 408,
+  "train_date_range": [
+    "2021-02-25",
+    "2024-08-22"
+  ],
+  "test_date_range": [
+    "2024-08-23",
+    "2026-04-09"
+  ],
+  "n_features": 137,
+  "train_metrics": {
+    "r2": 0.3564,
+    "mae": 0.01515,
+    "rmse": 0.01966,
+    "directional_accuracy": 0.7913
+  },
+  "test_metrics": {
+    "r2": -0.1023,
+    "mae": 0.01937,
+    "rmse": 0.02526,
+    "directional_accuracy": 0.4926
+  },
+  "top20_shap_features": {
+    "td_volume_change_20d": 0.001056,
+    "td_volatility_20d": 0.000723,
+    "fx_usdcad_level": 0.00054,
+    "yield_10y_level": 0.000444,
+    "tsx_return_20d": 0.000433,
+    "topic_macro_outlook_share_delta": 0.000429,
+    "td_volume_change_5d": 0.00038,
+    "days_since_call": 0.000306,
+    "fx_usdcad_volatility_20d": 0.000304,
+    "td_vs_xfn_5d": 0.000278,
+    "xfn_return_5d": 0.00027,
+    "td_return_20d": 0.000264,
+    "td_volume_zscore_20d": 0.000262,
+    "news_sent_mean_30d": 0.000247,
+    "topic_capital_share_delta": 0.000245,
+    "topic_guidance_share_delta": 0.000241,
+    "news_count_30d": 0.000222,
+    "topic_guidance_share_ffill": 0.000217,
+    "topic_entropy_ffill": 0.000214,
+    "topic_M_and_A_share_delta": 0.000202
+  }
+}

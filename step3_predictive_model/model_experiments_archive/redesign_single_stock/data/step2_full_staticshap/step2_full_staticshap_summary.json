@@ -1,0 +1,18 @@
+{
+  "exp_id": "STEP2_Full_StaticShap30",
+  "n_folds": 7,
+  "candidate_pool_size": 188,
+  "top_k": 30,
+  "threshold": 0.003,
+  "mean_accuracy": 0.43716690555821,
+  "mean_macro_f1": 0.32378046545880906,
+  "mean_active_sign_acc": 0.5509914583618407,
+  "mean_active_coverage": 0.9313094441790094,
+  "mean_majority_accuracy": 0.38477257525083614,
+  "mean_momentum_accuracy": 0.36643653448001273,
+  "mean_active_precision_pos": 0.45292610541057743,
+  "mean_active_precision_neg": 0.42210679622825126,
+  "mean_predicted_max_share": 0.7042480628615083,
+  "uplift_vs_majority_pp": 5.239433030737384,
+  "uplift_vs_momentum_pp": 7.073037107819724
+}

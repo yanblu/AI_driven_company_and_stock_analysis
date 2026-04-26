@@ -1,0 +1,131 @@
+{
+  "exp_id": "STEP2_48F",
+  "target": "target_excess_xfn_5d",
+  "threshold": 0.003,
+  "feature_count": 48,
+  "feature_groups": {
+    "A_td_price_tech": [
+      "td_return_1d",
+      "td_return_5d",
+      "td_return_20d",
+      "td_volatility_20d",
+      "td_volume_zscore_20d",
+      "td_corr_pv_20d",
+      "td_rsi_14",
+      "td_bb_position",
+      "td_dist_52w_high",
+      "td_resi_20d"
+    ],
+    "B_sector_market_relative": [
+      "td_vs_xfn_5d",
+      "td_vs_tsx_5d",
+      "xfn_return_5d"
+    ],
+    "C_systematic_risk": [
+      "td_beta_60d",
+      "td_rsqr_60d",
+      "td_resi_60d"
+    ],
+    "D_global_risk": [
+      "vix_level",
+      "vix_return_5d",
+      "gold_return_5d",
+      "dxy_return_5d",
+      "fx_usdcad_return_5d"
+    ],
+    "E_rates_macro": [
+      "yield_10y_level",
+      "yield_curve_slope",
+      "yield_curve_slope_change_5d",
+      "rate_overnight_level",
+      "cpi_yoy_change"
+    ],
+    "F_news_flow": [
+      "news_sent_mean_30d",
+      "news_count_30d",
+      "is_news_burst"
+    ],
+    "G_timing": [
+      "days_since_call",
+      "is_earnings_week",
+      "days_since_last_news"
+    ],
+    "H_nlp_event": [
+      "evt_ceo_tone",
+      "evt_cfo_tone",
+      "evt_cfo_lead",
+      "evt_ceo_surprise",
+      "evt_analyst_qa_tone",
+      "evt_exec_scripted_gap",
+      "evt_framing_gap",
+      "evt_guidance_strength",
+      "evt_guidance_shift",
+      "evt_aml_pressure",
+      "evt_aml_shift",
+      "evt_source_dispersion",
+      "evt_topic_entropy",
+      "evt_broad_topic_signal",
+      "evt_broad_topic_shift",
+      "evt_transcript_reliability"
+    ]
+  },
+  "new_event_features": [
+    "evt_cfo_lead",
+    "evt_ceo_surprise",
+    "evt_analyst_qa_tone",
+    "evt_exec_scripted_gap",
+    "evt_source_dispersion",
+    "evt_transcript_reliability"
+  ],
+  "features": [
+    "td_return_1d",
+    "td_return_5d",
+    "td_return_20d",
+    "td_volatility_20d",
+    "td_volume_zscore_20d",
+    "td_corr_pv_20d",
+    "td_rsi_14",
+    "td_bb_position",
+    "td_dist_52w_high",
+    "td_resi_20d",
+    "td_vs_xfn_5d",
+    "td_vs_tsx_5d",
+    "xfn_return_5d",
+    "td_beta_60d",
+    "td_rsqr_60d",
+    "td_resi_60d",
+    "vix_level",
+    "vix_return_5d",
+    "gold_return_5d",
+    "dxy_return_5d",
+    "fx_usdcad_return_5d",
+    "yield_10y_level",
+    "yield_curve_slope",
+    "yield_curve_slope_change_5d",
+    "rate_overnight_level",
+    "cpi_yoy_change",
+    "news_sent_mean_30d",
+    "news_count_30d",
+    "is_news_burst",
+    "days_since_call",
+    "is_earnings_week",
+    "days_since_last_news",
+    "evt_ceo_tone",
+    "evt_cfo_tone",
+    "evt_cfo_lead",
+    "evt_ceo_surprise",
+    "evt_analyst_qa_tone",
+    "evt_exec_scripted_gap",
+    "evt_framing_gap",
+    "evt_guidance_strength",
+    "evt_guidance_shift",
+    "evt_aml_pressure",
+    "evt_aml_shift",
+    "evt_source_dispersion",
+    "evt_topic_entropy",
+    "evt_broad_topic_signal",
+    "evt_broad_topic_shift",
+    "evt_transcript_reliability"
+  ],
+  "notes": "48-feature static pool defined in Section 9 of redesign_single_stock/nlp_event_feature_design.md. Trained with same LightGBM hyperparameters and walk-forward as R07 / S2_Reduced."
+}

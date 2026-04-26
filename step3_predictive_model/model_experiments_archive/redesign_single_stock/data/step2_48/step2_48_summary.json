@@ -1,0 +1,17 @@
+{
+  "exp_id": "STEP2_48F",
+  "feature_count": 48,
+  "threshold": 0.003,
+  "n_folds": 7,
+  "mean_accuracy": 0.43431979614588306,
+  "mean_macro_f1": 0.3238002129185443,
+  "mean_active_sign_acc": 0.5469205548941718,
+  "mean_active_coverage": 0.9279409141583054,
+  "mean_majority_accuracy": 0.38477257525083614,
+  "mean_momentum_accuracy": 0.36643653448001273,
+  "mean_active_precision_pos": 0.4633960198507436,
+  "mean_active_precision_neg": 0.39851900356102027,
+  "mean_predicted_max_share": 0.6402316574012525,
+  "uplift_vs_majority_pp": 4.954722089504693,
+  "uplift_vs_momentum_pp": 6.788326166587034
+}

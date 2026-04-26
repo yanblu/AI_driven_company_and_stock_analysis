@@ -1,0 +1,46 @@
+{
+  "exp_id": "STEP2_Full_StaticShap30",
+  "candidate_pool_size": 188,
+  "selected_top30": [
+    "td_vs_xfn_5d",
+    "td_rsqr_60d",
+    "gold_return_5d",
+    "evt_ceo_surprise",
+    "evt_guidance_shift",
+    "topic_cost_efficiency_sentiment_ffill",
+    "rate_overnight_change_5d",
+    "news_sent_mean_30d",
+    "gold_volatility_20d",
+    "td_corr_pv_20d",
+    "tsx_return_20d",
+    "xfn_return_5d",
+    "td_dist_52w_high",
+    "evt_broad_topic_signal",
+    "evt_cfo_tone",
+    "evt_cfo_lead",
+    "gold_level",
+    "tsx_return_1d",
+    "td_rsqr_20d",
+    "vix_volatility_20d",
+    "yield_2y_level",
+    "td_volume_change_20d",
+    "yield_10y_level",
+    "fx_usdcad_return_5d",
+    "td_corr_pv_5d",
+    "xfn_return_20d",
+    "td_vs_tsx_5d",
+    "td_resi_5d",
+    "tsx_return_5d",
+    "fx_usdcad_level"
+  ],
+  "selected_new_evt": [
+    "evt_ceo_surprise",
+    "evt_cfo_lead"
+  ],
+  "selected_existing_evt": [
+    "evt_guidance_shift",
+    "evt_broad_topic_signal",
+    "evt_cfo_tone"
+  ],
+  "selection_basis": "Global static SHAP ranking aggregated across all outer training folds (same method as S2_StaticShap30). Candidate pool is the full daily parquet plus the 6 new Step-2 inspired event features."
+}
