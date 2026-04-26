@@ -240,7 +240,7 @@ The target is a 5-day forward return, so consecutive test days share 4 days of r
 | 10   | 2025-06-10 → 2025-09-09 | 1.000                 | 0.663                |
 | 11   | 2025-09-10 → 2025-12-08 | 0.968                 | 0.457                |
 | 12   | 2025-12-09 → 2026-03-11 | 0.985                 | 0.691                |
-| 13   | 2026-03-12 → 2026-04-09 | 1.000                 | 0.400 *(20 days)*    |
+| 13   | 2026-03-12 → 2026-04-09 | 1.000                 | 0.600 *(20 days)*    |
 
 *For per-fold confusion matrices and SHAP breakdowns, see `notebooks/xgb_ensemble_v2_performance.ipynb` (Sections 7b and 10). For interpretation of strong and weak folds, see `model_explainability.md`.*
 
