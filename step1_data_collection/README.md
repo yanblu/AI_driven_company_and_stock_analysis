@@ -1,8 +1,20 @@
 # Step 1 — Data Collection
 
-Collects all raw data for the TD Bank analysis: daily prices, macro series, earnings call transcripts, regulatory filings, and press releases. Preprocesses text into LLM-ready chunks and builds the merged daily feature table consumed by Step 3.
+[← Project overview](../README.md) · [Case-study deck](../docs/presentation/summary-slide.pdf) · [Next: LLM analysis →](../step2_llm_analysis/README.md)
 
----
+Collects the public data used in the TD Bank analysis, prepares financial text for LLM annotation, and builds the daily feature table used by the predictive model.
+
+## At a glance
+
+| | Description |
+|---|---|
+| **Purpose** | Create a traceable, model-ready dataset from market data and public financial documents |
+| **Inputs** | Daily prices, Bank of Canada macro series, earnings calls, regulatory filings, quarterly reports, and TD news releases |
+| **Text output** | Cleaned, context-preserving JSONL passages consumed by Step 2 |
+| **Model output** | A daily feature table combining market, timing, news-flow, and Step 2 language signals |
+| **Provenance** | Source URL, retrieval date, and SHA-256 hash recorded for collected artifacts |
+
+For a conceptual explanation of the sources, preprocessing choices, and token budget, start with the [data-collection methodology](./docs/data_collection_methodology.md). For implementation details, use the structure and execution guide below.
 
 ## Folder structure
 
@@ -41,9 +53,7 @@ step1_data_collection/
     └── data_collection_methodology.md  ← sources, preprocessing pipeline, token budget
 ```
 
----
-
-## Output
+## Key outputs
 
 `data/features/model_features_daily.parquet` — ~1,285 trading-day rows fed into Step 3:
 
@@ -54,8 +64,6 @@ step1_data_collection/
 - **Timing** — days since last earnings call, earnings-week flag
 
 `data/chunks/*.jsonl` — 4,491 text chunks across 728 documents → passed to Step 2 for LLM annotation.
-
----
 
 ## Execution order
 
@@ -81,4 +89,4 @@ python step1_data_collection/src/features/build_daily_features.py
 python step1_data_collection/src/features/data_quality_check.py
 ```
 
-All collectors are idempotent — re-running skips already-downloaded files and appends to `data/manifest.csv`. Full methodology in `docs/data_collection_methodology.md`.
+All collectors are idempotent — re-running skips already-downloaded files and appends to `data/manifest.csv`. After the text chunks are built, continue with [Step 2 — LLM Analysis](../step2_llm_analysis/README.md), then return here to build the final daily feature table.

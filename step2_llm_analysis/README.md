@@ -1,8 +1,20 @@
 # Step 2 — LLM / NLP Analysis
 
-Reads all TD Bank earnings call transcripts, news releases, and regulatory filings collected in Step 1. Uses a large language model to score the tone and topic of each passage, then rolls those scores up to one row per quarter for use as model inputs in Step 3.
+[← Project overview](../README.md) · [← Step 1: Data collection](../step1_data_collection/README.md) · [Case-study deck](../docs/presentation/summary-slide.pdf) · [Next: Predictive modelling →](../step3_predictive_model/README.md)
 
----
+Transforms the financial text prepared in Step 1 into structured sentiment and topic signals. Passage-level annotations are aggregated into quarterly features that can be joined to market data in Step 3.
+
+## At a glance
+
+| | Description |
+|---|---|
+| **Purpose** | Convert unstructured financial language into consistent, model-ready numerical features |
+| **Input** | Context-preserving passages from earnings calls, news releases, regulatory filings, and quarterly reports |
+| **Method** | Zero-shot structured annotation with `gpt-4o-mini`, cached by content hash |
+| **Output** | Quarterly sentiment, topic, and narrative features consumed by the predictive model |
+| **Supporting analysis** | FinBERT sign-agreement comparison and an AML narrative case study |
+
+For the quickest analytical review, open [`02_annotation.ipynb`](./notebooks/02_annotation.ipynb). Prompt design, signal definitions, and interpretation are documented in the [LLM/NLP methodology](./docs/llm_nlp_methodology_analysis.md).
 
 ## Folder structure
 
@@ -17,7 +29,7 @@ step2_llm_analysis/
 │   ├── config.py                      ← Local path constants (data lives inside this folder)
 │   ├── annotate.py                    ← LLM annotation runner with sha256 cache
 │   ├── aggregate_features.py          ← Rolls per-passage annotations up to quarter-level features
-│   └── finbert_baseline.py            ← Independent FinBERT baseline for validation
+│   └── finbert_baseline.py            ← Independent FinBERT sign-agreement comparison
 └── data/
     ├── llm_annotations/               ← Per-passage annotation cache (one JSONL per source type)
     └── features/
@@ -27,9 +39,7 @@ step2_llm_analysis/
 
 > **Note:** Text chunks (input to annotation) are produced by Step 1 and live in `step1_data_collection/data/chunks/`.
 
----
-
-## Output
+## Key outputs
 
 `data/features/nlp_features.parquet` — 22 quarters × 35 columns fed into Step 3:
 
@@ -39,11 +49,9 @@ step2_llm_analysis/
 
 **3,884 passages annotated** across transcripts, news releases, 40-F filings, and quarterly reports. Analysis scope: FY2021Q1–FY2026Q1 (21 complete quarters; 3,857 passages in analysis — FY2026Q2 excluded as incomplete).
 
----
-
 ## Execution order
 
-All scripts are run from the **project root**. `OPENAI_API_KEY` must be set in `.env` or the shell environment before running annotation.
+All scripts are run from the **project root**. To create new annotations, copy [`.env.example`](../.env.example) to `.env` and provide `OPENAI_API_KEY`, or set the key in the shell environment. Existing cached annotations can be inspected without making new API calls.
 
 ```bash
 # 1. Annotate all passages with gpt-4o-mini (reads chunks from step1_data_collection/data/chunks/)
@@ -59,10 +67,8 @@ python step2_llm_analysis/src/finbert_baseline.py
 # open step2_llm_analysis/notebooks/02_annotation.ipynb
 ```
 
-Steps 1 and 2 are idempotent — re-running skips already-cached chunks and overwrites the feature parquet in place.
-
----
+Steps 1 and 2 are idempotent — re-running skips already-cached chunks and overwrites the feature parquet in place. The aggregated feature table is consumed by [Step 3 — Predictive Modelling](../step3_predictive_model/README.md).
 
 ## Key finding
 
-TD's AML enforcement cycle is visible end-to-end in the language signals. `regulatory_AML` topic share doubled from ~11% (FY2022 baseline) to 30% at the consent-order quarter (FY2024Q4), while AML sentiment fell 86%. CEO prepared-remarks sentiment hit 0.000 — the only zero in the 21-quarter dataset — and fell below the mandatory annual filing for the first time. Recovery signals (framing gap turning positive, guidance share spiking to a five-year high) appeared from FY2025Q1 onward. Full detail in `docs/llm_nlp_methodology_analysis.md`.
+TD's AML enforcement cycle is visible end-to-end in the language signals. `regulatory_AML` topic share doubled from ~11% (FY2022 baseline) to 30% at the consent-order quarter (FY2024Q4), while AML sentiment fell 86%. CEO prepared-remarks sentiment hit 0.000 — the only zero in the 21-quarter dataset — and fell below the mandatory annual filing for the first time. Recovery signals (framing gap turning positive, guidance share spiking to a five-year high) appeared from FY2025Q1 onward. See the [full methodology and narrative analysis](./docs/llm_nlp_methodology_analysis.md).

@@ -1,10 +1,23 @@
 # Step 3 — Predictive Modelling
 
-Predicts whether TD Bank will outperform, underperform, or be neutral relative to the XFN financials ETF over the next 5 trading days. Three separate XGBoost models (price, transcript, news) are combined via hard majority vote.
+[← Project overview](../README.md) · [← Step 2: LLM analysis](../step2_llm_analysis/README.md) · [Case-study deck](../docs/presentation/summary-slide.pdf)
 
----
+Tests whether market and language signals can help predict if TD Bank will outperform, underperform, or remain approximately neutral relative to the XFN financials ETF over the next five trading days.
 
-## Final Model
+## At a glance
+
+| | Description |
+|---|---|
+| **Purpose** | Combine structured market data and LLM-derived features in a time-aware predictive experiment |
+| **Inputs** | Daily price, transcript, filing-topic, and rolling news features produced by Steps 1 and 2 |
+| **Model** | Three XGBoost classifiers—price, transcript, and news—combined through hard majority vote |
+| **Target** | Direction of TD's five-day excess return relative to XFN, with a neutral band of ±0.3% |
+| **Evaluation** | Quarterly walk-forward folds with a rolling two-year training window and a five-trading-day gap |
+| **Outputs** | Saved classifiers, feature definitions, fold-level results, and SHAP explanations |
+
+For the quickest technical review, start with the [model card](./final_model/docs/model_card.md). The [performance notebook](./final_model/notebooks/xgb_ensemble_v2_performance.ipynb) contains the complete walk-forward analysis, and [model explainability](./final_model/docs/model_explainability.md) summarizes the SHAP findings.
+
+## Selected model
 
 ```
 final_model/
@@ -22,18 +35,16 @@ final_model/
     └── model_explainability.md ← SHAP observations, per-fold deep dive, when to trust the signal
 ```
 
-### Performance (13 walk-forward folds, validated 2026-04-23)
+### Reported performance across 13 walk-forward folds
 
-| Model | Directional Call Rate | Directional Accuracy |
+| Model | Directional call rate | Directional accuracy |
 |---|---|---|
-| Price | 0.972 | 0.530 |
-| Transcript | 0.993 | 0.550 |
-| News | 0.996 | 0.536 |
-| **Hard Majority Vote** | **0.982** | **0.566** |
+| Price | 97.2% | 53.0% |
+| Transcript | 99.3% | 55.0% |
+| News | 99.6% | 53.6% |
+| **Hard majority vote** | **98.2%** | **56.6%** |
 
-Random baseline = 0.50. Full per-fold breakdown and SHAP analysis in `notebooks/xgb_ensemble_v2_performance.ipynb`.
-
----
+Directional accuracy measures whether a non-neutral prediction correctly identifies the sign of the five-day excess return. These results are exploratory evidence from a single-company case study; see the [model card](./final_model/docs/model_card.md) for baseline comparisons, fold-level results, and limitations.
 
 ## To reproduce
 
@@ -53,8 +64,6 @@ cd ../../..
 
 The training notebook runs the hyperparameter grid search and saves `final_model/artifacts/best_params_*.json` and the three model pickles. The performance notebook loads those artifacts and must be run second.
 
----
-
 ## Archive
 
-`model_experiments_archive/` — earlier experiment rounds (LightGBM, feature selection variants, V1 ensemble). Superseded by the final model above.
+Earlier LightGBM, feature-selection, and ensemble experiments are retained in the [model experiments archive](./model_experiments_archive/README.md) for traceability. They are superseded by the selected model above and are not the recommended starting point.
